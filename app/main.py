@@ -316,9 +316,9 @@ async def process_item(items, queue, process_pool, thread_pool, brokers, p_lock,
         if filtered_item_list:
             stock_codes[symbol] = filtered_item_list
 
-    log.info(f'過濾後可運行策略種類: {len(stock_codes)}, \n策略:{stock_codes}')
+    log.info(f'過濾後可運行策略種類: {len(stock_codes)}, \n策略:{stock_codes}\n')
     if not stock_codes:
-        log.info("無可執行的策略，執行下一次 process_item")
+        log.info("無可執行的策略，執行下一次 process_item\n\n")
         return
     
     loop = asyncio.get_event_loop()
