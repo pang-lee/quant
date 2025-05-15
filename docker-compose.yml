@@ -1,0 +1,198 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: Quant
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Taipei  # 設置時區為 Asia/Taipei
+      - REDIS_HOST=redis-node-1
+      - REDIS_PORT=6379
+    ports:
+      - "5000:5000"
+    volumes: # 將主機的目錄掛載到容器的 /app 目錄
+      - ./app:/app
+    depends_on:
+      init-cluster:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    environment:
+      - TZ=Asia/Taipei
+    ports:
+      - "5540:5540"  # RedisInsight 的默認端口
+    volumes:
+      - ./redis/redisinsight_data:/data  # 持久化 RedisInsight 的配置和數據
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5540"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      init-cluster:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  redis-node-1:
+    image: redis:6.2.6
+    container_name: redis-node-1
+    environment:
+      - TZ=Asia/Taipei
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/redis-node-1/data:/data
+      - ./redis/redis-node-1/redis.conf:/usr/local/etc/redis/redis.conf  # 修改此路徑
+    command: redis-server /usr/local/etc/redis/redis.conf  # 修改此路徑
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app_network
+
+  redis-node-2:
+    image: redis:6.2.6
+    container_name: redis-node-2
+    environment:
+      - TZ=Asia/Taipei
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./redis/redis-node-2/data:/data
+      - ./redis/redis-node-2/redis.conf:/usr/local/etc/redis/redis.conf  # 修改此路徑
+    command: redis-server /usr/local/etc/redis/redis.conf  # 修改此路徑
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app_network
+
+  redis-node-3:
+    image: redis:6.2.6
+    container_name: redis-node-3
+    environment:
+      - TZ=Asia/Taipei
+    ports:
+      - "6381:6379"
+    volumes:
+      - ./redis/redis-node-3/data:/data
+      - ./redis/redis-node-3/redis.conf:/usr/local/etc/redis/redis.conf  # 修改此路徑
+    command: redis-server /usr/local/etc/redis/redis.conf  # 修改此路徑
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app_network
+
+  redis-node-4:
+    image: redis:6.2.6
+    container_name: redis-node-4
+    environment:
+      - TZ=Asia/Taipei
+    ports:
+      - "6382:6379"
+    volumes:
+      - ./redis/redis-node-4/data:/data
+      - ./redis/redis-node-4/redis.conf:/usr/local/etc/redis/redis.conf  # 修改此路徑
+    command: redis-server /usr/local/etc/redis/redis.conf  # 修改此路徑
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app_network
+
+  redis-node-5:
+    image: redis:6.2.6
+    container_name: redis-node-5
+    environment:
+      - TZ=Asia/Taipei
+    ports:
+      - "6383:6379"
+    volumes:
+      - ./redis/redis-node-5/data:/data
+      - ./redis/redis-node-5/redis.conf:/usr/local/etc/redis/redis.conf  # 修改此路徑
+    command: redis-server /usr/local/etc/redis/redis.conf  # 修改此路徑
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app_network
+
+  redis-node-6:
+    image: redis:6.2.6
+    container_name: redis-node-6
+    environment:
+      - TZ=Asia/Taipei
+    ports:
+      - "6384:6379"
+    volumes:
+      - ./redis/redis-node-6/data:/data
+      - ./redis/redis-node-6/redis.conf:/usr/local/etc/redis/redis.conf  # 修改此路徑
+    command: redis-server /usr/local/etc/redis/redis.conf  # 修改此路徑
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app_network
+
+  init-cluster:
+    image: redis:6.2.6
+    container_name: init-cluster
+    command: 
+      - sh
+      - -c
+      - >
+        sleep 20 &&
+        REDIS1_IP=$$(getent hosts redis-node-1 | awk '{ print $$1 }') &&
+        REDIS2_IP=$$(getent hosts redis-node-2 | awk '{ print $$1 }') &&
+        REDIS3_IP=$$(getent hosts redis-node-3 | awk '{ print $$1 }') &&
+        REDIS4_IP=$$(getent hosts redis-node-4 | awk '{ print $$1 }') &&
+        REDIS5_IP=$$(getent hosts redis-node-5 | awk '{ print $$1 }') &&
+        REDIS6_IP=$$(getent hosts redis-node-6 | awk '{ print $$1 }') &&
+        echo "Creating cluster with $$REDIS1_IP:6379, $$REDIS2_IP:6379, $$REDIS3_IP:6379, $$REDIS4_IP:6379, $$REDIS5_IP:6379, $$REDIS6_IP:6379" &&
+        redis-cli --cluster create \
+          $$REDIS1_IP:6379 $$REDIS2_IP:6379 $$REDIS3_IP:6379 \
+          $$REDIS4_IP:6379 $$REDIS5_IP:6379 $$REDIS6_IP:6379 \
+          --cluster-replicas 1 --cluster-yes
+    depends_on:
+      redis-node-1:
+        condition: service_healthy
+      redis-node-2:
+        condition: service_healthy
+      redis-node-3:
+        condition: service_healthy
+      redis-node-4:
+        condition: service_healthy
+      redis-node-5:
+        condition: service_healthy
+      redis-node-6:
+        condition: service_healthy
+    healthcheck:
+        test: ["CMD-SHELL", "redis-cli -h redis-node-1 -p 6379 CLUSTER INFO | grep -q 'cluster_state:ok'"]
+        interval: 5s
+        timeout: 3s
+        retries: 10
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge

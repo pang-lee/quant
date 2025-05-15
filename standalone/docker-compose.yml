@@ -1,0 +1,39 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: Trade
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Taipei  # 設置時區為 Asia/Taipei
+    ports:
+      - "5000:5000"
+    volumes: # 將主機的目錄掛載到容器的 /app 目錄
+      - ../app:/app
+    depends_on:
+      - redis
+    networks:
+      - app_network
+
+  redis:
+    image: redis:6.2.6  # 使用適當版本的 Redis 映像
+    container_name: redis_container
+    environment:
+      - TZ=Asia/Taipei  # 可選，為 Redis 設置時區
+    ports:
+      - "16379:6379"
+    volumes:
+      - ./redis/redis_data:/data  # 持久化 Redis 數據
+      - ./redis/redis.conf:/etc/redis/redis.conf  # 使用自定義的 Redis 配置文件
+    command: redis-server /etc/redis/redis.conf  # 指定啟動時使用的配置文件
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
