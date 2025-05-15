@@ -3,3 +3,4 @@
 /app/shoiaji.log
 /app/reference
 /redis/redis-node-*/data/
+/standalone/redis/redis_data

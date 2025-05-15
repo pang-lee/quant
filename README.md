@@ -1,4 +1,4 @@
-## quant
+## Quant (量化交易系統)
 ```
 Quantitive trading system and basic strategy for tradeing
 
