@@ -1,4 +1,0 @@
-5/12/2025, 5:19:38 PM | ERROR | KeytarEncryptionStrategy | Failed to initialize keytar module | [object Object]
-5/12/2025, 5:19:49 PM | ERROR | GlobalNotificationProvider | Unable to download or parse notifications json. getaddrinfo EAI_AGAIN github.com | [object Object]
-5/12/2025, 5:19:49 PM | ERROR | GlobalNotificationProvider | Unable to sync notifications with remote | [object Object]
-5/12/2025, 5:20:57 PM | ERROR | KeytarEncryptionStrategy | Failed to initialize keytar module | [object Object]
