@@ -1,6 +1,6 @@
 /app/.env
 /app/log
-/app/shoiaji.log
+/app/shioaji.log
 /app/reference
 /app/data/preserve
 /redis/redis-node-*/data/
