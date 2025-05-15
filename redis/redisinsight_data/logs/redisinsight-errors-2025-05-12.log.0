@@ -1,0 +1,5 @@
+5/12/2025, 9:42:30 AM | ERROR | KeytarEncryptionStrategy | Failed to initialize keytar module | [object Object]
+5/12/2025, 9:42:58 AM | ERROR | LocalDatabaseSettingsRepository | Database settings item with id:a26e9d40-5747-41d8-8475-4f6e593622e2 was not Found | [object Object]
+5/12/2025, 9:42:58 AM | ERROR | PluginService | Error when trying to process plugin common | [object Object]
+5/12/2025, 9:45:23 AM | ERROR | PluginService | Error when trying to process plugin common | [object Object]
+5/12/2025, 9:45:23 AM | ERROR | LocalDatabaseSettingsRepository | Database settings item with id:a26e9d40-5747-41d8-8475-4f6e593622e2 was not Found | [object Object]

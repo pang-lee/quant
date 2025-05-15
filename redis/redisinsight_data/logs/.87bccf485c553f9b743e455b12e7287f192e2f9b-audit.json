@@ -1,0 +1,36 @@
+{
+    "keepSettings": {
+        "type": 1,
+        "amount": 7
+    },
+    "auditFilename": "/data/logs/.87bccf485c553f9b743e455b12e7287f192e2f9b-audit.json",
+    "hashType": "sha256",
+    "extension": "",
+    "files": [
+        {
+            "date": 1747014150634,
+            "name": "/data/logs/redisinsight-errors-2025-05-12.log.0",
+            "hash": "f919d759925adf8960f33ae386de3159ab416ddb89513c96f7c8b3343710d2d6"
+        },
+        {
+            "date": 1747041578803,
+            "name": "/data/logs/redisinsight-errors-2025-05-12.log.2025",
+            "hash": "84534bf672a5aa4697aee776b595cf7d37ffd3bf8f6564ec8f088184080d980f"
+        },
+        {
+            "date": 1747103559613,
+            "name": "/data/logs/redisinsight-errors-2025-05-13.log.0",
+            "hash": "bddb901c1521f25c6e8bc8cc7744710acccd3bd8351889b645bef068d5903479"
+        },
+        {
+            "date": 1747103670039,
+            "name": "/data/logs/redisinsight-errors-2025-05-13.log.2025",
+            "hash": "61cc95a7956ba1bbb0dfc08eb09fc259f4564779a41617ec67946860a583cc2a"
+        },
+        {
+            "date": 1747191757745,
+            "name": "/data/logs/redisinsight-errors-2025-05-14.log.0",
+            "hash": "8b6f92599efd6d72122348a99294b4019a01c5ad32661f5c74f15c7aabc9e613"
+        }
+    ]
+}

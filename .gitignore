@@ -2,4 +2,4 @@
 /app/log
 /app/shoiaji.log
 /app/reference
-/redis
+/redis/redis-node-*/data/
