@@ -3,4 +3,5 @@
 /app/shoiaji.log
 /app/reference
 /redis/redis-node-*/data/
+/redis/redisinsight_data/
 /standalone/redis/redis_data
