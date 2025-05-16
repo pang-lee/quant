@@ -29,7 +29,7 @@ services:
     volumes:
       - ./redis/redisinsight_data:/data  # 持久化 RedisInsight 的配置和數據
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5540"]
+      test: ["CMD", "nc", "-z", "http://localhost:5540"]
       interval: 5s
       timeout: 3s
       retries: 5
