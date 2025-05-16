@@ -545,6 +545,8 @@ class Statarb1(AbstractStrategy):
                 
                 return self.order
             
+            self.log.info("當前甚麼也沒觸發(止損, 平倉), 等待下一次檢查")
+            
         elif position1 > 0 and position2 < 0: # 多A空B
             self.log.info("當前多A(MXFR)空B(TMFR)")
             
@@ -673,6 +675,8 @@ class Statarb1(AbstractStrategy):
                 
                 return self.order
             
+            self.log.info("當前甚麼也沒觸發(止損, 平倉), 等待下一次檢查")
+        
         return False
     
     def execute(self):
