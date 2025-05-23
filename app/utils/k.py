@@ -21,8 +21,11 @@ def convert_ohlcv(df, freq=60):
             return pd.Series(["other", pd.NaT])
         return pd.Series([session_type, session_start])
 
-    df[["session_type", "session_start"]] = df.index.to_series().apply(classify_session)
-    df = df[df["session_type"].isin(["day", "night"])]
+    # 修改1: 使用 .loc 明確賦值
+    df.loc[:, ["session_type", "session_start"]] = df.index.to_series().apply(classify_session)
+    
+    # 修改2: 過濾後強制創建副本
+    df = df[df["session_type"].isin(["day", "night"])].copy()
 
     # ✅ 將 index 向前推 1 分鐘
     df.index = df.index - pd.Timedelta(minutes=1)
@@ -65,4 +68,4 @@ def convert_ohlcv(df, freq=60):
     agg_df = pd.DataFrame(result)
     agg_df.set_index("ts", inplace=True)
 
-    return agg_df   
+    return agg_df

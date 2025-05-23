@@ -88,7 +88,7 @@
                     "stop_ratio2": 250,
                     "stop_ratio1": 50,
                     "window_trading_days": 3,
-                    "beta": 1.012672071091548,
+                    "beta": 1.0033904398370688,
                     "K_time": 30,
                     "position_type": "statarb",
                     "simulation": true,

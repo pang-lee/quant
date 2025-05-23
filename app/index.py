@@ -61,8 +61,11 @@ if __name__ == "__main__":
         # 運行數據源獲取
         run_data_sources(open_json_file()['items'])
 
+        while True:
+            pass
+
         # 運行所有任務
-        asyncio.run(run_all())
+        # asyncio.run(run_all())
 
     except KeyboardInterrupt:
         print("程序已被中断，正在退出...")
