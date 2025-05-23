@@ -1,7 +1,7 @@
 /app/.env
 /app/log
 /app/shioaji.log
-/app/reference
+/reference
 /app/data/preserve
 /redis/redis-node-*/data/
 /redis/redisinsight_data/
