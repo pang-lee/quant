@@ -1,5 +1,6 @@
 from utils.task.Task import Task
 from utils.log import get_module_logger
+from utils.k import convert_ohlcv
 import pandas as pd
 import os, pytz
 from utils.file import open_json_file, update_settings
@@ -102,8 +103,9 @@ class CalculateCoeffTask(Task):
                         for code in item['code']:
                             # 篩選窗口
                             window_df, _ = self.filter_and_check_window(data_dict[code], window_trading_days, code, f"{base_path}/{code}")  # 此處已確保數據足夠
-                            dt_dict[code] = window_df['close'].resample(f"{item['params']['K_time']}min").ohlc()['close'].dropna()
-
+                            dt_dict[code] = convert_ohlcv(window_df, item['params']['K_time'])['close']
+                        
+                        # 依照ABC生成時間序列
                         column_names = [chr(65 + i) for i in range(len(dt_dict))]
                         combined_df = pd.DataFrame(dict(zip(column_names, dt_dict.values()))).dropna()
 
@@ -185,7 +187,6 @@ class CalculateCoeffTask(Task):
                 if not os.path.exists(csv_path):
                     os.makedirs(csv_path)
                 self.log.info(f"{code}資料的交易日數量不足, 僅有{len(unique_dates)}天, 但是需要 {window_trading_days}天. 將此pandas存入 {csv_path}.")
-                df.to_csv(f"{csv_path}/{code}.csv", index=True)  # 保存完整數據到 CSV
             return None, False  # 數據不足
 
         # 從最新的日期開始，選取前 window_trading_days 個交易日

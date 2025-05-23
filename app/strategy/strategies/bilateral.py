@@ -3,7 +3,7 @@ from datetime import datetime, time
 import json, ast
 
 class Bilateral(AbstractStrategy):
-    def __init__(self, datas, item, symbol, k=14400):
+    def __init__(self, datas, item, symbol, k=3600):
         super().__init__(datas, item, symbol, 'oscillation_profit_ratio1', 'oscillation_stop_ratio1', k)
         self.last_k_ts = None if super().get_from_redis(f"last_k_ts_{self.item['code'][0]}_{self.item['strategy']}") is None else datetime.strptime(super().get_from_redis(f"last_k_ts_{self.item['code'][0]}_{self.item['strategy']}")['ts'], "%Y-%m-%d %H:%M:%S")
         self.total_bid_volume = 0
@@ -36,8 +36,18 @@ class Bilateral(AbstractStrategy):
         
     def check_price(self):
         sr_value = super().get_from_redis(f"{self.item['strategy']}_{json.dumps(self.item['code'])}_sr")
-        code = self.item['code'][0]
 
+        # 檢查 sr_value 是否為 None 或空值
+        if not sr_value:
+            self.log.error(f"從 Redis 取不到壓力支撐的相關資訊, 將重設監控狀態")
+            self.entry('quit', **{
+                'title': '無法獲得支撐壓力的數值, 不再監控',
+                'capital': capital
+            })
+
+            return self.order
+        
+        code = self.item['code'][0]
         # 檢查 tick 是否有資料
         if self.last_data['tick'] and len(self.last_data['tick']) > 0:
             stock_price1 = float(self.last_data['tick'][0]['close'])
@@ -58,7 +68,7 @@ class Bilateral(AbstractStrategy):
         strategy_order_info = self.execute_position_control('check').get(code, {})
 
         self.log.info(f"準備檢查進場條件")
-        
+
         # 判斷是否有未完成的訂單或有倉位
         has_pending_orders = 'pending_orders' in strategy_order_info and bool(strategy_order_info['pending_orders'])
         has_position = 'position' in strategy_order_info and 'symbol' in strategy_order_info['position'] and 'quantity' in strategy_order_info['position']
@@ -69,7 +79,10 @@ class Bilateral(AbstractStrategy):
             
             if self.force_close(data_time, trading_periods): # 無艙位但是超時, 不再監控價格
                 self.log(f"監控逾時, 不再監控價格")
-                self.entry('quit', **{'capital': capital})
+                self.entry('quit', **{
+                    'title': '超出交易時間, 不再監控震盪價格變化',
+                    'capital': capital
+                })
                 
                 return self.order
 
@@ -351,7 +364,7 @@ class Bilateral(AbstractStrategy):
         
         if action == 'quit': # 超時無倉位, 不再監控價格
             publish = {
-                'title': '超出交易時間, 不再監控震盪價格變化',
+                'title': params.get('title'),
                 'description': f"{self.split_code_to_str(self.item['code'])} 不進行監控",
                 'footer': f'{self.symbol}',
                 'color': 0x00FF7F,
@@ -567,8 +580,11 @@ class Bilateral(AbstractStrategy):
                 }
                 
                 return self.order.extend([(self.symbol, self.item, True, {'monitor': False}, publish, {})])
-            
+
             else: # 價格在區間壓力內, 進行監控
+                position_data = self.execute_position_control('check').get(self.item['code'], {})
+                capital = position_data.get('position', {}).get('capital', self.params['capital'])
+
                 publish = {
                     'title': '監控價格通知',
                     'description': f"{self.split_code_to_str(self.item['code'])} 進入震盪監控",
@@ -583,10 +599,10 @@ class Bilateral(AbstractStrategy):
                         '壓力': resistance,
                         '止損': self.item['params']['oscillation_stop_ratio1'],
                         '止盈': self.item['params']['oscillation_profit_ratio1'],
-                        '當前資產': params.get('capital', 0)
+                        '當前資產': capital
                     }
                 }
-                
+
                 return self.order.extend([(self.symbol, self.item, True, {'monitor': True}, publish, {})])
 
         elif action == 1: # 接近支撐做多

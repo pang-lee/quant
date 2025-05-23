@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import timedelta, datetime
 from pathlib import Path
 from utils.log import get_module_logger
+from utils.k import convert_ohlcv
 from utils.file import open_json_file
 import shioaji as sj
 from dotenv import load_dotenv
@@ -136,19 +137,6 @@ async def clear_redis(lock, output_dir="data/preserve"):
                 # 確保 ts 欄位為 datetime，並設置為索引
                 df['ts'] = pd.to_datetime(df['ts'])
                 df.set_index('ts', inplace=True)
-
-                # 根據 timeframe 重新採樣 OHLCV
-                if int(timeframe) > 1:  # 如果 timeframe 不是 1 分鐘，進行重新採樣
-                    df = df.resample(f'{timeframe}min').agg({ # Pandas 的時間規則，例如 '60min' 表示 60 分鐘
-                        'Open': 'first',
-                        'High': 'max',
-                        'Low': 'min',
-                        'Close': 'last',
-                        'Volume': 'sum'
-                    }).dropna()
-
-                # 重置索引，將 ts 恢復為欄位
-                df.reset_index(inplace=True)
                 
                 # 將 OHLCV 欄位名稱改為小寫
                 df = df.rename(columns={ 
@@ -158,11 +146,13 @@ async def clear_redis(lock, output_dir="data/preserve"):
                     'Close': 'close',
                     'Volume': 'volume'
                 })
+                
+                k_df = convert_ohlcv(df, timeframe)
 
                 # 儲存到 CSV，使用 output_path（資料夾名稱為 full_key）
                 file_path = os.path.join(output_path, 'kbars.csv')
                 os.makedirs(output_path, exist_ok=True)  # 確保資料夾存在
-                df.to_csv(file_path, index=False)
+                k_df.to_csv(file_path, index=False)
 
                 log.info(f"處理 {full_key} 從 {begin} 到 {end} 時間週期 {timeframe} 分鐘")
                 log.info(f"資料存入 {file_path}\n")

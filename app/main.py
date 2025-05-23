@@ -36,25 +36,19 @@ def run_data_sources(symbols):
         for key, items in filtered_symbols.items():
             for item in items:
                 datasource_type = item['params'].get('datasource')
-                simulation = item['params'].get('simulation')
                 symbol_codes = item.get('code', [])
 
                 # 為每個 code 建立數據源
                 for symbol_code in symbol_codes:
                     if datasource_type == "shioaji":
-                        shioaji_subscription.append((key, symbol_code, simulation))
+                        shioaji_subscription.append((key, symbol_code))
                     elif datasource_type == "fugle":
                         # Fugle 使用 WebSocket 處理
-                        handle_fugle_websocket(key, symbol_code, simulation)
+                        handle_fugle_websocket(key, symbol_code)
                         
         if shioaji_subscription:
-            unique_subscriptions = {}
-            for key, symbol_code, simulation in shioaji_subscription:
-                identifier = (key, symbol_code, simulation)
-                unique_subscriptions[identifier] = (key, symbol_code, simulation)
-
             # 啟動執行緒來處理 Shioaji 訂閱
-            thread = threading.Thread(target=handle_shioaji_subscription, args=(unique_subscriptions,))
+            thread = threading.Thread(target=handle_shioaji_subscription, args=(list(set(shioaji_subscription)),))
             thread.daemon = True
             thread.start()
 
@@ -97,13 +91,11 @@ def read_from_csv():
         time.sleep(1)
     
 def handle_shioaji_subscription(subscriptions):
-    # 先對訂閱列表進行去重，依據 (key, symbol_code, simulation) tuple 唯一標識
-    for key, symbol_code, simulation in subscriptions.values():
-        print(f"訂閱 Shioaji 行情數據: {symbol_code} (key: {key}, 模擬: {simulation})")
-        DatasourceFactory.create_datasource("ShioajiDataSource", key, symbol_code, simulation)
+    # 參數(資料來源, 訂閱商品, 是否為模擬單)
+    DatasourceFactory.create_datasource("ShioajiDataSource", subscriptions, "True")
 
     while True: # Shioaji 訂閱
-        time.sleep(1)  # 控制訂閱頻率
+        time.sleep(1)
 
 def handle_fugle_websocket(key, symbol_code, simulation):
     print(f"訂閱 Fugle WebSocket 行情數據: {symbol_code} (key: {key}, 模擬: {simulation})")

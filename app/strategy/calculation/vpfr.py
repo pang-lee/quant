@@ -216,6 +216,12 @@ class Vpfr(AbstractCalculation):
         buffer = self.params['oscillation_buffer']
         support_range = (min_price - buffer), (min_price + buffer)
         resistance_range = (max_price - buffer), (max_price + buffer)
+        
+        # 將所有價格轉換為小數點後2位
+        support_range = tuple(round(p, 2) for p in support_range)
+        resistance_range = tuple(round(p, 2) for p in resistance_range)
+        min_price = round(min_price, 2)
+        max_price = round(max_price, 2)
 
         # 計算支撐位和壓力位
         price_diff = resistance_range[0] - support_range[1]

@@ -14,7 +14,8 @@ class DatasourceFactory:
             DatasourceFactory._datasources_loaded = True
 
     @staticmethod
-    def create_datasource(name, symbol, code, simulation):
+    # def create_datasource(name, symbol, code, simulation):
+    def create_datasource(name, product, simulation):
         DatasourceFactory._ensure_datasources_loaded()
         
         if name not in DatasourceFactory._datasource_classes:
@@ -22,8 +23,8 @@ class DatasourceFactory:
 
         # 創建資料源實例並調用方法
         datasource_class = DatasourceFactory._datasource_classes[name]
-        return datasource_class(simulation=simulation).fetch_market_data(symbol=symbol, code=code)
-        
+        return datasource_class(simulation=simulation).fetch_market_data(product)
+
     @staticmethod
     def aggregate_ticks_by_second(tick_data):
         """
