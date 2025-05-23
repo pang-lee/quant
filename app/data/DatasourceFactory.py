@@ -14,7 +14,6 @@ class DatasourceFactory:
             DatasourceFactory._datasources_loaded = True
 
     @staticmethod
-    # def create_datasource(name, symbol, code, simulation):
     def create_datasource(name, product, simulation):
         DatasourceFactory._ensure_datasources_loaded()
         
