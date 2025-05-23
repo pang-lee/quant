@@ -39,9 +39,7 @@ class ShioajiDataSource(AbstractDatasource):
             elif symbol == 'index':
                 self.subscribe_index(code)
             elif symbol == 'future':
-                # self.subscribe_future(code)
-                self.subscribe_stock('2330')
-                
+                self.subscribe_future(code)
             elif symbol == 'option':
                 self.subscribe_option(code)
 
