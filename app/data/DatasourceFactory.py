@@ -1,4 +1,7 @@
 from data.broker.load import load_datasources
+import threading, os, time
+from distutils.util import strtobool
+from db.redis import set_redis_consumer
 from collections import defaultdict
 import pandas as pd
 
@@ -22,7 +25,49 @@ class DatasourceFactory:
 
         # 創建資料源實例並調用方法
         datasource_class = DatasourceFactory._datasource_classes[name]
-        return datasource_class(simulation=simulation).fetch_market_data(product)
+        return datasource_class(simulation).fetch_market_data(product)
+
+    # -------------- 資料行情訂閱 --------------------
+    @staticmethod
+    def run_data_sources(symbols):
+        # 過濾掉空陣列的 key
+        filtered_symbols = {k: v for k, v in symbols.items() if v}
+
+        # 實盤行情資料
+        set_redis_consumer(filtered_symbols)
+
+        # 提取需要訂閱的項目
+        shioaji_subscription = []
+        # 提取有效的 datasource 並生成數據源
+        for key, items in filtered_symbols.items():
+            for item in items:
+                datasource_type = item['params'].get('datasource')
+                symbol_codes = item.get('code', [])
+                # 為每個 code 建立數據源
+                for symbol_code in symbol_codes:
+                    if datasource_type == "shioaji":
+                        shioaji_subscription.append((key, symbol_code))
+
+                    else:# 其他數據源處理邏輯, 這裡需要根據實際需求實現其他數據源的處理邏輯
+                        pass
+
+        if shioaji_subscription: # 啟動執行緒來處理 Shioaji 訂閱
+            thread = threading.Thread(target=DatasourceFactory.handle_shioaji_subscription, args=(list(set(shioaji_subscription)),))
+            thread.daemon = True
+            thread.start()
+
+        return
+
+    # -------------- 永豐行情訂閱 --------------------
+    @staticmethod
+    def handle_shioaji_subscription(subscriptions):
+        print(f"訂閱 Fugle WebSocket 行情數據: {subscriptions}, 模擬: {bool(strtobool(os.getenv('IS_DEV', 'true')))}")
+
+        # 參數(資料來源, 訂閱商品, 是否為模擬單)
+        DatasourceFactory.create_datasource("ShioajiDataSource", subscriptions, bool(strtobool(os.getenv('IS_DEV', 'true'))))
+
+        while True: # Shioaji 訂閱
+            time.sleep(1)
 
     @staticmethod
     def aggregate_ticks_by_second(tick_data):

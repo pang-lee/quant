@@ -1,7 +1,6 @@
 {
     "params": {
         "position_type": "dynamic",
-        "simulation": true,
         "cross_day": false,
         "night": false,
         "broker": "shioaji",
@@ -28,7 +27,6 @@
                 ],
                 "params": {
                     "cross_day": true,
-                    "simulation": true,
                     "price_diff": 30,
                     "vpfr_oscillation": 0.3,
                     "rsv_low": 20,
@@ -91,7 +89,6 @@
                     "beta": 1.0033904398370688,
                     "K_time": 30,
                     "position_type": "statarb",
-                    "simulation": true,
                     "broker": "shioaji",
                     "datasource": "shioaji",
                     "tz": "Asia/Taipei",

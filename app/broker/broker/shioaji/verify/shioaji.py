@@ -20,3 +20,15 @@ def get_shioaji_instance(simulation=True):
         _shioaji_instance = api
         
     return _shioaji_instance  # 返回已存在的連線實例
+
+def logout_shioaji():
+    global _shioaji_instance
+    if _shioaji_instance is not None:
+        try:
+            _shioaji_instance.logout()
+            _shioaji_instance = None
+            print("Shioaji instance logged out and cleared successfully.")
+        except Exception as e:
+            print(f"Error during logout: {e}")
+    else:
+        print("No Shioaji instance to logout.")

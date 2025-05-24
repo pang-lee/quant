@@ -1,7 +1,8 @@
 import multiprocessing, threading, asyncio
+from data import DatasourceFactory
 from notify import DC
 import concurrent.futures
-from main import process_item, run_data_sources
+from main import process_item
 from utils.file import open_json_file
 from broker.load import load_brokers
 from utils.scheduler import TaskScheduler
@@ -20,12 +21,12 @@ async def run_all():
         thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2)  # 線程池
         order_status, pending_task = multiprocessing.Manager().dict(), multiprocessing.Manager().dict()
         process_lock, async_lock  = multiprocessing.Manager().Lock(), asyncio.Lock()
-        
+
         broker_lock =  {
             broker_name: threading.Lock()  # 每个券商对应一个线程锁
             for broker_name, _ in broker.items()
         }
-        
+
         strategy_lock = {
             f"{key}:{item['strategy']}": threading.Lock()
             for key, item_list in {k: v for k, v in open_json_file()['items'].items() if v}.items()
@@ -35,7 +36,7 @@ async def run_all():
 
         scheduler = TaskScheduler(process_lock)
         scheduler.start()
-        
+
         while True:
             with process_lock:
                 items = {k: v for k, v in open_json_file()['items'].items() if v}
@@ -59,7 +60,7 @@ async def run_all():
 if __name__ == "__main__":
     try:
         # 運行數據源獲取
-        run_data_sources(open_json_file()['items'])
+        DatasourceFactory.run_data_sources(open_json_file()['items'])
         
         # 運行所有任務
         asyncio.run(run_all())
@@ -68,3 +69,4 @@ if __name__ == "__main__":
         print("程序已被中断，正在退出...")
     finally:
         print("程序退出")
+

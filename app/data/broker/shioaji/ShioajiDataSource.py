@@ -11,14 +11,33 @@ load_dotenv()
 class ShioajiDataSource(AbstractDatasource):
     def __init__(self, simulation=True):
         super().__init__()
-        self.api = get_shioaji_instance(simulation=simulation)
+        self.simulation = simulation
+        self.api = get_shioaji_instance(simulation=self.simulation)
         self.log = get_module_logger('data/shioaji_data')
-        self.code_mapping = {}  # 交易所代號 (e.g., MXFR5) -> 原始代號 (e.g., TMFR1)
-        self.api.quote.set_on_tick_fop_v1_callback(self.process_future_tick)
-        self.api.quote.set_on_bidask_fop_v1_callback(self.process_future_bidask)
-        self.api.quote.set_on_tick_stk_v1_callback(self.process_stock_tick)
-        self.api.quote.set_on_bidask_stk_v1_callback(self.process_stock_bidask)
-        
+        self._init_callbacks()
+    
+    def _init_callbacks(self):
+        """初始化報價回調"""
+        try:
+            self.code_mapping = {}  # 交易所代號 (e.g., MXFR5) -> 原始代號 (e.g., TMFR1)
+            self.api.quote.set_on_tick_fop_v1_callback(self.process_future_tick)
+            self.api.quote.set_on_bidask_fop_v1_callback(self.process_future_bidask)
+            self.api.quote.set_on_tick_stk_v1_callback(self.process_stock_tick)
+            self.api.quote.set_on_bidask_stk_v1_callback(self.process_stock_bidask)
+            self.log.info("Shioaji callbacks 設定完成")
+        except Exception as e:
+            self.log.error(f"callbacks 設定失敗: {e}")
+
+    def reinit_api(self):
+        """從外部重新初始化 self.api"""
+        try:
+            self.api = get_shioaji_instance(simulation=self.simulation)
+            self._init_callbacks()
+            self.log.info("ShioajiDataSource - 重新設定shioaji連線")
+        except Exception as e:
+            self.log.error(f"ShioajiDataSource - 重新設定Shioaji失敗: {e}")
+            raise
+
     def fetch_market_data(self, product):
         for item in product:
             symbol, code = item

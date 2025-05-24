@@ -1,19 +1,34 @@
 from broker.broker.shioaji.verify.shioaji import get_shioaji_instance
 from broker.broker.shioaji.order.shioajiOrder import ShioajiOrderManager
 from broker.abc.AbstractBroker import AbstractBroker
-import threading
+import threading, os
+from distutils.util import strtobool
+from dotenv import load_dotenv
+load_dotenv()
 
 class shioaji(AbstractBroker):
     def __init__(self, async_queue, items, log):
         super().__init__(items, log)
+        # self.simulation = bool(strtobool(os.getenv('IS_DEV', 'true')))
         self.simulation = True
         self.api = get_shioaji_instance(simulation=self.simulation)
-        self.order_manager = ShioajiOrderManager(self.api, async_queue, log, self)
+        self.order_manager = ShioajiOrderManager(async_queue, log, self)
+        self.order_manager.init_api(self.api)
         self.contracts = []
         self.event_lock = threading.Lock()  # 保護回調事件和結果
         self.order_events = {}  # 存儲訂單的 Event 對象
         self.order_results = {}  # 存儲訂單的回調結果
-    
+
+    def reinit_api(self):
+        """從外部重新初始化 self.api"""
+        try:
+            self.api = get_shioaji_instance(simulation=self.simulation)
+            self.order_manager.init_api(self.api)
+            self.log.info("ShioajiClient - 重新設定shioaji連線")
+        except Exception as e:
+            self.log.error(f"ShioajiClient - 重新設定Shioaji失敗: {e}")
+            raise
+
     # ---------------------------- 下單程序入口 ----------------------------
     # 從Thread Pool中, 進行下單的判斷
     def place_order(self, order_params, result_type):
@@ -261,3 +276,4 @@ class shioaji(AbstractBroker):
             "total_pnl": total_pnl,
             "details": details_array
         }
+

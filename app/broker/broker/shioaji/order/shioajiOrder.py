@@ -5,13 +5,16 @@ import shioaji as sj
 from datetime import datetime
 
 class ShioajiOrderManager(BaseOrderManager):
-    def __init__(self, api, async_queue, log, broker):
+    def __init__(self, async_queue, log, broker):
         super().__init__(async_queue, log)
-        self.api = api
         self.broker = 'shioaji'
         self.broker_instance = broker
         self.cb_queue = queue.Queue()
         self.start_callback_processor()
+
+    def init_api(self, api):
+        self.api = api
+        return
 
     def _handle_order(self, action, contract, account, order_params):
         try:
@@ -59,7 +62,7 @@ class ShioajiOrderManager(BaseOrderManager):
 
         trade = self.api.place_order(contract, order)
         self.api.set_order_callback(functools.partial(self.order_cb, order_info=order_params))
-        
+
         self.log.info(f"股票下單: {order_params['symbol']}/{order_params['code']}/{order_params['strategy']}/{order_params['trade_id']}, 相關訂單參數: {order_params}")
 
         # 檢查交易狀態與通知
@@ -68,7 +71,7 @@ class ShioajiOrderManager(BaseOrderManager):
             'trade': trade,
             'strategy': order_params['strategy']
         })
-        
+
     # 期貨下單
     def _place_future(self, action, contract, account, order_params):
         action_value = getattr(sj.constant.Action, action)

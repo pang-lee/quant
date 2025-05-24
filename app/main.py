@@ -1,105 +1,11 @@
-import asyncio, os, time, json, threading, datetime, pytz
+import asyncio, json, datetime, pytz
 from collections import defaultdict
 from data import DatasourceFactory
 from strategy import Strategy
-import pandas as pd
-from db.redis import get_redis_connection, create_consumer_group, set_redis_consumer
+from db.redis import get_redis_connection
 from utils.file import update_settings
 from dotenv import load_dotenv
 load_dotenv()
-
-isDev = os.getenv('IS_DEV', 'false').lower() in ('true', '1', 'yes')
-if isDev:
-    code = 'TMFR1'
-    dev_redis_key= f"dev_{code}_stream"
-
-# -------------- 資料行情訂閱 --------------------
-def run_data_sources(symbols):
-    # 過濾掉空陣列的 key
-    filtered_symbols = {k: v for k, v in symbols.items() if v}
-
-    # 如果是測試開發
-    if isDev:
-        # 啟動執行緒來處理 Shioaji 訂閱
-        thread = threading.Thread(target=read_from_csv)
-        thread.daemon = True
-        thread.start()
-
-    # 實盤行情資料
-    else:
-        set_redis_consumer(filtered_symbols)
-        
-        # 提取需要訂閱的項目
-        shioaji_subscription = []
-
-        # 提取有效的 datasource 並生成數據源
-        for key, items in filtered_symbols.items():
-            for item in items:
-                datasource_type = item['params'].get('datasource')
-                symbol_codes = item.get('code', [])
-
-                # 為每個 code 建立數據源
-                for symbol_code in symbol_codes:
-                    if datasource_type == "shioaji":
-                        shioaji_subscription.append((key, symbol_code))
-                    elif datasource_type == "fugle":
-                        # Fugle 使用 WebSocket 處理
-                        handle_fugle_websocket(key, symbol_code)
-                        
-        if shioaji_subscription:
-            # 啟動執行緒來處理 Shioaji 訂閱
-            thread = threading.Thread(target=handle_shioaji_subscription, args=(list(set(shioaji_subscription)),))
-            thread.daemon = True
-            thread.start()
-
-def read_from_csv():
-    redis_cli = get_redis_connection()
-    df = pd.read_csv(f"./data/test/{code}.csv")
-
-    # 將時間戳轉換為 datetime 格式
-    df['ts'] = pd.to_datetime(df['ts'])
-        
-    # 使用 groupby 來按秒分組
-    df = df.groupby(df['ts'].dt.floor('s')).agg({
-        'close': 'last', 
-        'volume': 'sum', 
-        'bid_price': lambda x: tuple(sorted(x)), 
-        'bid_volume': 'sum', 
-        'ask_price': lambda x: tuple(sorted(x)), 
-        'ask_volume': 'sum', 
-        'tick_type': lambda x: DatasourceFactory.analyze_tick_types(x, type='pandas')
-    }).reset_index()
-
-    df.set_index('ts', inplace=True)
-        
-    # 按秒分組並模擬每秒處理一次資料
-    for i in range(0, len(df)):
-        row = df.iloc[i]
-        
-        redis_cli.xadd(dev_redis_key, {
-            "ts": row.name.strftime('%Y-%m-%d %H:%M:%S'),
-            "close": float(row["close"]),  # 轉換為原生 float
-            "volume": int(row["volume"]),  # 轉換為原生 int
-            "bid_price": json.dumps([float(x) for x in row["bid_price"]]),  # tuple 轉換並轉 float
-            "bid_volume": int(row["bid_volume"]), 
-            "ask_price": json.dumps([float(x) for x in row["ask_price"]]),
-            "ask_volume": int(row["ask_volume"]),
-            "tick_type": json.dumps(row["tick_type"]),  # dict 轉為 JSON 字符串
-            'code': code
-        })
-        
-        time.sleep(1)
-    
-def handle_shioaji_subscription(subscriptions):
-    # 參數(資料來源, 訂閱商品, 是否為模擬單)
-    DatasourceFactory.create_datasource("ShioajiDataSource", subscriptions, "True")
-
-    while True: # Shioaji 訂閱
-        time.sleep(1)
-
-def handle_fugle_websocket(key, symbol_code, simulation):
-    print(f"訂閱 Fugle WebSocket 行情數據: {symbol_code} (key: {key}, 模擬: {simulation})")
-    data_source = DatasourceFactory.create_datasource("fugle", key, symbol_code, simulation)
 
 # -------------- 訊號計算與下單 ---------------------
 
@@ -107,89 +13,78 @@ def handle_fugle_websocket(key, symbol_code, simulation):
 def check_signal(symbol, item, log):
     redis_cli = get_redis_connection()
     data_list = {}
-
-    if isDev: # 測試環境僅使用單一stream與單一資料進行讀取(dev_redis_key)
+  
+    # 如果是正式環境, 依照symbol和code來所生成的獨立stream進行讀取(EX: stock_2330_stream), conusmer和gruop也要一個個對應        
+    log.info(f"開始檢查訊號: {symbol}, \n計算商品: {item}")
+    try:
         for code in item['code']:
-            group_name = f"{item['params']['broker']}_{symbol}_{code}_group"
-            consumer_name = f"consumer_{item['params']['broker']}_{symbol}_{code}"
-            
-            create_consumer_group(redis_cli, dev_redis_key, group=group_name)
-            data = redis_cli.xreadgroup(group_name, consumer_name, streams={dev_redis_key: '>'}, block=1000, count=10)
-            
+            data_redis_key = f"{item['params']['broker']}_{symbol}_{code}_stream"
+            data_group_name = f"{item['params']['broker']}_{symbol}_{code}_{item['strategy']}_group"
+            data_consumer_name = f"consumer_{item['params']['broker']}_{symbol}_{code}_{item['strategy']}"
+
+            bidask_redis_key = f"{item['params']['broker']}_{symbol}_{code}_bidask_stream"
+            bidask_group_name = f"{item['params']['broker']}_{symbol}_{code}_{item['strategy']}_group"
+            bidask_consumer_name = f"consumer_{item['params']['broker']}_{symbol}_{code}_{item['strategy']}_bidask"
+
+            data = redis_cli.xreadgroup(data_group_name, data_consumer_name, streams={data_redis_key: '>'}, block=1000, count=10)
+            bid_ask = redis_cli.xreadgroup(bidask_group_name, bidask_consumer_name, streams={bidask_redis_key: '>'}, block=1000, count=10)
+
             if data:
-                data_list[code] = (message[1] for _, messages in data for message in messages)
-                
-    else: # 如果是正式環境, 依照symbol和code來所生成的獨立stream進行讀取(EX: stock_2330_stream), conusmer和gruop也要一個個對應        
-        log.info(f"開始檢查訊號: {symbol}, \n計算商品: {item}")
-        try:
-            for code in item['code']:
-                data_redis_key = f"{item['params']['broker']}_{symbol}_{code}_stream"
-                data_group_name = f"{item['params']['broker']}_{symbol}_{code}_{item['strategy']}_group"
-                data_consumer_name = f"consumer_{item['params']['broker']}_{symbol}_{code}_{item['strategy']}"
+                # 提取 tick 和 bidask 數據
+                tick_data = [message[1] for _, messages in data for message in messages]
+                bidask_data = [message[1] for _, messages in bid_ask for message in messages]
 
-                bidask_redis_key = f"{item['params']['broker']}_{symbol}_{code}_bidask_stream"
-                bidask_group_name = f"{item['params']['broker']}_{symbol}_{code}_{item['strategy']}_group"
-                bidask_consumer_name = f"consumer_{item['params']['broker']}_{symbol}_{code}_{item['strategy']}_bidask"
+                # 清理 bidask_data 中的字串化列表
+                for bd in bidask_data:
+                    bd['bid_prices'] = json.loads(bd['bid_prices'])
+                    bd['bid_volumes'] = json.loads(bd['bid_volumes'])
+                    bd['diff_bid_vols'] = json.loads(bd['diff_bid_vols'])
+                    bd['ask_prices'] = json.loads(bd['ask_prices'])
+                    bd['ask_volumes'] = json.loads(bd['ask_volumes'])
+                    bd['diff_ask_vols'] = json.loads(bd['diff_ask_vols'])
 
-                data = redis_cli.xreadgroup(data_group_name, data_consumer_name, streams={data_redis_key: '>'}, block=1000, count=10)
-                bid_ask = redis_cli.xreadgroup(bidask_group_name, bidask_consumer_name, streams={bidask_redis_key: '>'}, block=1000, count=10)
+                # 按秒聚合 tick_data
+                aggregated_ticks = DatasourceFactory.aggregate_ticks_by_second(tick_data)
 
-                if data:
-                    # 提取 tick 和 bidask 數據
-                    tick_data = [message[1] for _, messages in data for message in messages]
-                    bidask_data = [message[1] for _, messages in bid_ask for message in messages]
+                # 按完整時間戳排序（含微秒）
+                aggregated_ticks.sort(key=lambda x: x["ts"])
+                bidask_data.sort(key=lambda x: x["ts"])
 
-                    # 清理 bidask_data 中的字串化列表
-                    for bd in bidask_data:
-                        bd['bid_prices'] = json.loads(bd['bid_prices'])
-                        bd['bid_volumes'] = json.loads(bd['bid_volumes'])
-                        bd['diff_bid_vols'] = json.loads(bd['diff_bid_vols'])
-                        bd['ask_prices'] = json.loads(bd['ask_prices'])
-                        bd['ask_volumes'] = json.loads(bd['ask_volumes'])
-                        bd['diff_ask_vols'] = json.loads(bd['diff_ask_vols'])
+                # 將聚合後的 tick_data 和 bidask_data 按秒合併
+                grouped = defaultdict(lambda: {"tick": [], "bidask": []})
+                for rec in aggregated_ticks:
+                    ts_key = rec["ts"].split('.')[0]  # 去除微秒部分
+                    grouped[ts_key]["tick"].append(rec)
+                for rec in bidask_data:
+                    ts_key = rec["ts"].split('.')[0]
+                    grouped[ts_key]["bidask"].append(rec)
 
-                    # 按秒聚合 tick_data
-                    aggregated_ticks = DatasourceFactory.aggregate_ticks_by_second(tick_data)
+                # 為當前 code 創建獨立的數據列表
+                code_data = []
+                for ts, data_dict in grouped.items():
+                    code_data.append({
+                        "ts": ts,
+                        "tick": data_dict["tick"],
+                        "bidask": data_dict["bidask"]
+                    })
 
-                    # 按完整時間戳排序（含微秒）
-                    aggregated_ticks.sort(key=lambda x: x["ts"])
-                    bidask_data.sort(key=lambda x: x["ts"])
+                # 將當前 code 的數據加入 data_list
+                data_list[code] = code_data
 
-                    # 將聚合後的 tick_data 和 bidask_data 按秒合併
-                    grouped = defaultdict(lambda: {"tick": [], "bidask": []})
-                    for rec in aggregated_ticks:
-                        ts_key = rec["ts"].split('.')[0]  # 去除微秒部分
-                        grouped[ts_key]["tick"].append(rec)
-                    for rec in bidask_data:
-                        ts_key = rec["ts"].split('.')[0]
-                        grouped[ts_key]["bidask"].append(rec)
-
-                    # 為當前 code 創建獨立的數據列表
-                    code_data = []
-                    for ts, data_dict in grouped.items():
-                        code_data.append({
-                            "ts": ts,
-                            "tick": data_dict["tick"],
-                            "bidask": data_dict["bidask"]
-                        })
-
-                    # 將當前 code 的數據加入 data_list
-                    data_list[code] = code_data
-
-            if not data_list: # 如果沒有數據, 則返回預設的結構, 等待下一次
-                log.info(f"\n當前data_list沒有從redis的stream中獲得任何資料, 等待下一次檢查\n")
-                return [(symbol, item, False, {}, {}, {})]
-            
-            # 可以傳入多筆{data1: [], data2: []}
-            result = Strategy(symbol, item, data_list).execute()
-            log.info(f"當前策略回傳結果: {result}")
-
-            # 回傳結果 [(symbol, item, 下單行為(詳情看AbstractStrategy), {}修改參數, {}推播內容, {}訂單參數)...]
-            return result
-    
-        except Exception as e:
-            log.error(f"當前check_siganl出錯: {e}")
+        if not data_list: # 如果沒有數據, 則返回預設的結構, 等待下一次
+            log.info(f"\n當前data_list沒有從redis的stream中獲得任何資料, 等待下一次檢查\n")
             return [(symbol, item, False, {}, {}, {})]
+            
+        # 可以傳入多筆{data1: [], data2: []}
+        result = Strategy(symbol, item, data_list).execute()
+        log.info(f"當前策略回傳結果: {result}")
+
+        # 回傳結果 [(symbol, item, 下單行為(詳情看AbstractStrategy), {}修改參數, {}推播內容, {}訂單參數)...]
+        return result
+    
+    except Exception as e:
+        log.error(f"當前check_siganl出錯: {e}")
+        return [(symbol, item, False, {}, {}, {})]
 
 # 下單（I/O 密集型任務）symbol: 商品種類, item: 商品代號詳情, result_type: 下多空單, order_params: 訂單參數(止盈止損價)
 def place_order(order_params, brokers, result_type, broker_lock, order_status, strategy_lock, pending_task, log):
