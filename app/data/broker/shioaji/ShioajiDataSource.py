@@ -9,13 +9,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class ShioajiDataSource(AbstractDatasource):
-    def __init__(self, simulation=True):
-        super().__init__()
-        self.simulation = simulation
-        self.api = get_shioaji_instance(simulation=self.simulation)
-        self.log = get_module_logger('data/shioaji_data')
-        self._init_callbacks()
+    _instance = None
     
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(ShioajiDataSource, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self, simulation=True):
+        if not hasattr(self, '_initialized'):
+            super().__init__()
+            self.simulation = simulation
+            self.api = get_shioaji_instance(simulation=self.simulation)
+            self.log = get_module_logger('data/shioaji_data')
+            self._init_callbacks()
+            self._initialized = True
+
     def _init_callbacks(self):
         """初始化報價回調"""
         try:
@@ -28,15 +37,19 @@ class ShioajiDataSource(AbstractDatasource):
         except Exception as e:
             self.log.error(f"callbacks 設定失敗: {e}")
 
-    def reinit_api(self):
-        """從外部重新初始化 self.api"""
+    @classmethod
+    def reinit_api(cls, api):
+        """從外部重新初始化單例的 api"""
         try:
-            self.api = get_shioaji_instance(simulation=self.simulation)
-            self._init_callbacks()
-            self.log.info("ShioajiDataSource - 重新設定shioaji連線")
+            instance = cls._instance  # 獲取單例
+            if instance is None:
+                raise ValueError("ShioajiDataSource instance 沒有初始化")
+
+            instance.api = api
+            instance._init_callbacks()  # 重新設定 callbacks
+            instance.log.info("ShioajiDataSource - 重新設定shioaji連線")
         except Exception as e:
-            self.log.error(f"ShioajiDataSource - 重新設定Shioaji失敗: {e}")
-            raise
+            raise RuntimeError(f"ShioajiDataSource - 重新設定Shioaji失敗: {e}")
 
     def fetch_market_data(self, product):
         for item in product:

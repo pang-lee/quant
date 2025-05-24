@@ -1,5 +1,8 @@
 import os
 import shioaji as sj
+from distutils.util import strtobool
+from broker.shioaji.shioaji import shioaji
+from data.broker.shioaji.ShioajiDataSource import ShioajiDataSource
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -23,12 +26,16 @@ def get_shioaji_instance(simulation=True):
 
 def logout_shioaji():
     global _shioaji_instance
+    # simulation = bool(strtobool(os.getenv('IS_DEV', 'true')))
+    simulation = True
     if _shioaji_instance is not None:
         try:
             _shioaji_instance.logout()
             _shioaji_instance = None
-            print("Shioaji instance logged out and cleared successfully.")
+            api = get_shioaji_instance(simulation)
+            shioaji.reinit_api(api)
+            ShioajiDataSource.reinit_api(api)
         except Exception as e:
-            print(f"Error during logout: {e}")
+            raise RuntimeError(f"shioaji登出出錯: {e}")
     else:
-        print("No Shioaji instance to logout.")
+        raise RuntimeError("找不到shioaji instance, 無法登出")

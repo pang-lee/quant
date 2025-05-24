@@ -28,13 +28,18 @@ class TaskScheduler:
         return [
             {
                 "name": "calculate_coeff",
-                "trigger": CronTrigger(hour=5, minute=30),
+                "trigger": CronTrigger(hour=6, minute=0),
                 "args": [self.process_lock]
             },
             {
                 "name": "clear_redis",
-                "trigger": CronTrigger(hour=6, minute=0),
+                "trigger": CronTrigger(hour=7, minute=0),
                 "args": [self.process_lock]
+            },
+            {
+                "name": "reinit_shioaji",
+                "trigger": CronTrigger(hour=8, minute=0),
+                "args": []
             },
             {
                 "name": "calculate_coeff",
@@ -45,6 +50,11 @@ class TaskScheduler:
                 "name": "clear_redis",
                 "trigger": CronTrigger(hour=14, minute=30),
                 "args": [self.process_lock]
+            },
+            {
+                "name": "reinit_shioaji",
+                "trigger": CronTrigger(hour=14, minute=45),
+                "args": []
             }
         ]
 

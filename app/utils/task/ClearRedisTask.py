@@ -5,7 +5,7 @@ from utils.task.Task import Task
 class ClearRedisTask(Task):
     def __init__(self):
         self.log = get_module_logger('utils/task/ClearRedisTask')
-        
+
     @property
     def name(self) -> str:
         return "clear_redis"

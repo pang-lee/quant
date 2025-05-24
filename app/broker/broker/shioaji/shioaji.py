@@ -7,27 +7,43 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class shioaji(AbstractBroker):
+    _instance = None
+    
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(shioaji, cls).__new__(cls)
+        return cls._instance
+    
     def __init__(self, async_queue, items, log):
-        super().__init__(items, log)
-        # self.simulation = bool(strtobool(os.getenv('IS_DEV', 'true')))
-        self.simulation = True
-        self.api = get_shioaji_instance(simulation=self.simulation)
-        self.order_manager = ShioajiOrderManager(async_queue, log, self)
-        self.order_manager.init_api(self.api)
+        if not hasattr(self, '_initialized'):
+            super().__init__(items, log)
+            # self.simulation = bool(strtobool(os.getenv('IS_DEV', 'true')))
+            self.simulation = True
+            self.api = get_shioaji_instance(simulation=self.simulation)
+            self.order_manager = ShioajiOrderManager(self.api, async_queue, log, self)
+            self._init_params()
+            self.event_lock = threading.Lock()  # 保護回調事件和結果
+            self._initialized = True
+    
+    def _init_params(self):
         self.contracts = []
-        self.event_lock = threading.Lock()  # 保護回調事件和結果
         self.order_events = {}  # 存儲訂單的 Event 對象
         self.order_results = {}  # 存儲訂單的回調結果
 
-    def reinit_api(self):
+    @classmethod
+    def reinit_api(cls, api):
         """從外部重新初始化 self.api"""
         try:
-            self.api = get_shioaji_instance(simulation=self.simulation)
-            self.order_manager.init_api(self.api)
-            self.log.info("ShioajiClient - 重新設定shioaji連線")
+            instance = cls._instance  # 獲取單例
+            if instance is None:
+                raise ValueError("ShioajiDataSource instance 沒有初始化")
+
+            instance.api = api
+            ShioajiOrderManager.reinit_api(api)
+            instance._init_params()  # 重新設定params
+            instance.log.info("ShioajiClient - 重新設定shioaji連線")
         except Exception as e:
-            self.log.error(f"ShioajiClient - 重新設定Shioaji失敗: {e}")
-            raise
+            raise RuntimeError(f"ShioajiClient - 重新設定Shioaji失敗: {e}")
 
     # ---------------------------- 下單程序入口 ----------------------------
     # 從Thread Pool中, 進行下單的判斷

@@ -9,7 +9,7 @@ class BaseOrderManager(ABC):
         self.tz = pytz.timezone('Asia/Taipei')
         self.queue = queue.Queue()
         self.redis = get_redis_connection()
-        
+
         # 啟動異步任務來持續將資料從同步隊列轉移到異步隊列
         asyncio.create_task(self.transfer_to_async_queue())  # 在初始化時啟動異步任務
 
