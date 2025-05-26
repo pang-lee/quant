@@ -3,20 +3,30 @@ from datetime import datetime, time
 import json
 
 class Tmfrsmc(AbstractStrategy):
-    def __init__(self, datas, item, symbol, k=3600):
-        super().__init__(datas, item, symbol, 'profit_ratio1', 'stop_ratio1', k)
+    def __init__(self, datas, item, symbol):
+        super().__init__(datas, item, symbol, 'profit_ratio1', 'stop_ratio1')
         self.last_4hr_k = None if super().get_from_redis(f"last_k_4hr_{self.item['code'][0]}_{self.item['strategy']}") is None else datetime.strptime(super().get_from_redis(f"last_k_4hr_{self.item['code'][0]}_{self.item['strategy']}")['ts'], "%Y-%m-%d %H:%M:%S")
         self.last_15min_k = None if super().get_from_redis(f"last_k_15min_{self.item['code'][0]}_{self.item['strategy']}") is None else datetime.strptime(super().get_from_redis(f"last_k_15min_{self.item['code'][0]}_{self.item['strategy']}")['ts'], "%Y-%m-%d %H:%M:%S")
         self.last_5min_k = None if super().get_from_redis(f"last_k_5min_{self.item['code'][0]}_{self.item['strategy']}") is None else datetime.strptime(super().get_from_redis(f"last_k_5min_{self.item['code'][0]}_{self.item['strategy']}")['ts'], "%Y-%m-%d %H:%M:%S")
-    
+        self.current_position1 = None
+        self.k_4h, self.k_15min, self.k_5min = [], [], []
+
     def load_k(self):
-        pass
+        # 從self.redis_k_key中讀取1分K, 並組合成大時間級別K, 而後放入相對應的Key中,
+        # 接著使用self.lrange_of_redis取得每個時間的K棒資料
+        
+        k_4hr_amount = self.lrange_of_redis(self.redis_k_key, -self.params['z_window'], -1)
+        k_15min_amount = self.lrange_of_redis(self.redis_k_key, -self.params['z_window'], -1)
+        k_5min_amount = self.lrange_of_redis(self.redis_k_key, -self.params['z_window'], -1)
+
+        if len(k_4hr_amount) < self.params['window_4h'] and len(k_15min_amount) < self.params['window_15m'] and len(k_5min_amount) < self.params['window_5m']:
+            return 0
 
     def check_position(self):
         code1 = self.item['code'][0]
         strategy_order_info = self.execute_position_control('check') or {}
         self.current_position1 = strategy_order_info.get(code1, {})
-        
+
         # 判斷是否有未完成的訂單或有倉位
         has_pending_orders1 = 'pending_orders' in self.current_position1 and bool(self.current_position1['pending_orders'])
         has_position1 = 'position' in self.current_position1 and 'symbol' in self.current_position1['position'] and 'quantity' in self.current_position1['position']
@@ -222,7 +232,15 @@ class Tmfrsmc(AbstractStrategy):
     
     def execute(self):
         try:
-            pass
+            self.nothing_order()
+            return self.order
+
+            self.load_k()
+
+            if not self.calculate:
+                self.nothing_order()
+                return self.order
+
         except Exception as e:
             self.log.error(f"TMFR_SMC執行策略出錯: {e}")
             self.nothing_order()

@@ -1,49 +1,71 @@
-from broker.broker.shioaji.verify.shioaji import get_shioaji_instance
 from broker.broker.shioaji.order.shioajiOrder import ShioajiOrderManager
 from broker.abc.AbstractBroker import AbstractBroker
+from data.broker.shioaji.ShioajiDataSource import ShioajiDataSource
+import shioaji as sj
 import threading, os
 from distutils.util import strtobool
 from dotenv import load_dotenv
 load_dotenv()
 
 class shioaji(AbstractBroker):
-    _instance = None
-    
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(shioaji, cls).__new__(cls)
-        return cls._instance
-    
+    _shioaji_instance = None  # 用於存儲 Redis 單例實例
+
     def __init__(self, async_queue, items, log):
-        if not hasattr(self, '_initialized'):
-            super().__init__(items, log)
-            # self.simulation = bool(strtobool(os.getenv('IS_DEV', 'true')))
-            self.simulation = True
-            self.api = get_shioaji_instance(simulation=self.simulation)
-            self.order_manager = ShioajiOrderManager(self.api, async_queue, log, self)
-            self._init_params()
-            self.event_lock = threading.Lock()  # 保護回調事件和結果
-            self._initialized = True
-    
+        super().__init__(items, log)
+        # self.simulation = bool(strtobool(os.getenv('IS_DEV', 'true')))
+        self.simulation = True
+        self.api = self.get_shioaji_instance(self.simulation)
+        self.order_manager = ShioajiOrderManager(async_queue, log, self)
+        self.order_manager.init_api(self.api)
+        self._init_params()
+        self.event_lock = threading.Lock()  # 保護回調事件和結果
+
     def _init_params(self):
         self.contracts = []
         self.order_events = {}  # 存儲訂單的 Event 對象
         self.order_results = {}  # 存儲訂單的回調結果
 
     @classmethod
-    def reinit_api(cls, api):
+    def get_shioaji_instance(cls, simulation=True):
+        if cls._shioaji_instance is None:  # 如果尚未創建連線，則創建
+            api = sj.Shioaji(simulation=simulation)
+            api.login(
+                api_key=os.getenv('API_KEY'),
+                secret_key=os.getenv('SECRET_KEY'),
+                subscribe_trade=simulation,
+                fetch_contract=False,
+            )
+            api.fetch_contracts(contract_download=True)
+
+            cls._shioaji_instance = api
+
+        return cls._shioaji_instance  # 返回已存在的連線實例
+
+    @classmethod
+    def logout_shioaji(cls):
+        # simulation = bool(strtobool(os.getenv('IS_DEV', 'true')))
+        simulation = True
+        if cls._shioaji_instance is not None:
+            try:
+                _shioaji_instance.logout()
+                _shioaji_instance = None
+                api = cls.get_shioaji_instance(simulation)
+                cls.reinit_api(api)
+                ShioajiDataSource.reinit_api(api)
+            except Exception as e:
+                cls.log.error(f"shioaji登出出錯: {e}")
+        else:
+            cls.log.error("找不到shioaji instance, 無法登出")
+
+    def reinit_api(self, api):
         """從外部重新初始化 self.api"""
         try:
-            instance = cls._instance  # 獲取單例
-            if instance is None:
-                raise ValueError("ShioajiDataSource instance 沒有初始化")
-
-            instance.api = api
-            ShioajiOrderManager.reinit_api(api)
-            instance._init_params()  # 重新設定params
-            instance.log.info("ShioajiClient - 重新設定shioaji連線")
+            self.api = api
+            self.order_manager.reinit_api(api)
+            self._init_params()  # 重新設定params
+            self.log.info("ShioajiClient - 重新設定shioaji連線")
         except Exception as e:
-            raise RuntimeError(f"ShioajiClient - 重新設定Shioaji失敗: {e}")
+            self.log.error(f"ShioajiClient - 重新設定Shioaji失敗: {e}")
 
     # ---------------------------- 下單程序入口 ----------------------------
     # 從Thread Pool中, 進行下單的判斷

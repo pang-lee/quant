@@ -15,19 +15,22 @@ class Facade:
             ReinitShioaji()
         ]
 
-    async def run_task(self, task_name, process_lock, *args, **kwargs) -> None:
+    async def run_task(self, task_name, **kwargs) -> None:
         """
         根據任務名稱執行對應的子任務
         """
         self.log.info(f"正在加載任務: {task_name}")
+
         for task in self.tasks:
             if task.name == task_name:
                 try:
-                    await task.execute(process_lock)
+                    await task.execute(**kwargs)
                     self.log.info(f"Task {task_name} 完成")
                 except Exception as e:
                     self.log.error(f"task {task_name} 出錯: {str(e)}")
                     raise
                 return
+
         self.log.warning(f"Task {task_name} 不存在")
         raise ValueError(f"Task {task_name} 不存在")
+    

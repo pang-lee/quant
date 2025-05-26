@@ -17,7 +17,7 @@ class DatasourceFactory:
             DatasourceFactory._datasources_loaded = True
 
     @staticmethod
-    def create_datasource(name, product, simulation):
+    def create_datasource(name, product, brokers):
         DatasourceFactory._ensure_datasources_loaded()
         
         if name not in DatasourceFactory._datasource_classes:
@@ -25,11 +25,11 @@ class DatasourceFactory:
 
         # 創建資料源實例並調用方法
         datasource_class = DatasourceFactory._datasource_classes[name]
-        return datasource_class(simulation).fetch_market_data(product)
+        return datasource_class(brokers).fetch_market_data(product)
 
     # -------------- 資料行情訂閱 --------------------
     @staticmethod
-    def run_data_sources(symbols):
+    def run_data_sources(symbols, brokers):
         # 過濾掉空陣列的 key
         filtered_symbols = {k: v for k, v in symbols.items() if v}
 
@@ -52,7 +52,7 @@ class DatasourceFactory:
                         pass
 
         if shioaji_subscription: # 啟動執行緒來處理 Shioaji 訂閱
-            thread = threading.Thread(target=DatasourceFactory.handle_shioaji_subscription, args=(list(set(shioaji_subscription)),))
+            thread = threading.Thread(target=DatasourceFactory.handle_shioaji_subscription, args=(list(set(shioaji_subscription)), brokers))
             thread.daemon = True
             thread.start()
 
@@ -60,11 +60,11 @@ class DatasourceFactory:
 
     # -------------- 永豐行情訂閱 --------------------
     @staticmethod
-    def handle_shioaji_subscription(subscriptions):
-        print(f"訂閱 Fugle WebSocket 行情數據: {subscriptions}, 模擬: {bool(strtobool(os.getenv('IS_DEV', 'true')))}")
+    def handle_shioaji_subscription(subscriptions, brokers):
+        print(f"訂閱 Shioaji 行情數據: {subscriptions}\n當前模擬模式: {bool(strtobool(os.getenv('IS_DEV', 'true')))}")
 
         # 參數(資料來源, 訂閱商品, 是否為模擬單)
-        DatasourceFactory.create_datasource("ShioajiDataSource", subscriptions, bool(strtobool(os.getenv('IS_DEV', 'true'))))
+        DatasourceFactory.create_datasource("ShioajiDataSource", subscriptions, brokers)
 
         while True: # Shioaji 訂閱
             time.sleep(1)

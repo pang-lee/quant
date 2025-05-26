@@ -29,32 +29,42 @@ class TaskScheduler:
             {
                 "name": "calculate_coeff",
                 "trigger": CronTrigger(hour=6, minute=0),
-                "args": [self.process_lock]
+                "kwargs": {"lock": self.process_lock}
+            },
+            {
+                "name": "calculate_smc",
+                "trigger": CronTrigger(hour=6, minute=10),
+                "kwargs": {"redo": True}
             },
             {
                 "name": "clear_redis",
                 "trigger": CronTrigger(hour=7, minute=0),
-                "args": [self.process_lock]
+                "kwargs": {"lock": self.process_lock}
             },
             {
                 "name": "reinit_shioaji",
                 "trigger": CronTrigger(hour=8, minute=0),
-                "args": []
+                "kwargs": {}
             },
             {
                 "name": "calculate_coeff",
                 "trigger": CronTrigger(hour=14, minute=15),
-                "args": [self.process_lock]
+                "kwargs": {"lock": self.process_lock}
+            },
+            {
+                "name": "calculate_smc",
+                "trigger": CronTrigger(hour=14, minute=20),
+                "kwargs": {"redo": False}
             },
             {
                 "name": "clear_redis",
                 "trigger": CronTrigger(hour=14, minute=30),
-                "args": [self.process_lock]
+                "kwargs": {"lock": self.process_lock}
             },
             {
                 "name": "reinit_shioaji",
                 "trigger": CronTrigger(hour=14, minute=45),
-                "args": []
+                "kwargs": {}
             }
         ]
 
@@ -65,11 +75,12 @@ class TaskScheduler:
         for config in self.task_configs:
             task_name = config["name"]
             trigger = config["trigger"]
-            args = config["args"]
+            kwargs = config["kwargs"]
             self.scheduler.add_job(
                 self.facade.run_task,
                 trigger,
-                args=[task_name] + args,
+                args=[task_name],
+                kwargs=kwargs,
                 name=task_name
             )
             self.log.info(f"註冊任務 {task_name} 與觸發器 {trigger}")

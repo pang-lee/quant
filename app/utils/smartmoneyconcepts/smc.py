@@ -249,10 +249,12 @@ class smc:
 
         last_positions = []
 
+        # 假設這是 swing_highs_lows 函數的一部分
         for i in range(len(swing_highs_lows["HighLow"])):
-            if not np.isnan(swing_highs_lows["HighLow"][i]):
-                level_order.append(swing_highs_lows["Level"][i])
-                highs_lows_order.append(swing_highs_lows["HighLow"][i])
+            if not np.isnan(swing_highs_lows["HighLow"].iloc[i]):
+                level_order.append(swing_highs_lows["Level"].iloc[i])
+                highs_lows_order.append(swing_highs_lows["HighLow"].iloc[i])
+                
                 if len(level_order) >= 4:
                     # bullish bos
                     bos[last_positions[-2]] = (

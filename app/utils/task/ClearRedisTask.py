@@ -10,10 +10,10 @@ class ClearRedisTask(Task):
     def name(self) -> str:
         return "clear_redis"
 
-    async def execute(self, lock) -> None:
+    async def execute(self, **kwargs) -> None:
         try:
             self.log.info("運行clear_redis task")
-            await clear_redis(lock)
+            await clear_redis(kwargs.get('lock'))
         except Exception as e:
             self.log.error(f"clear_redis出現錯誤: {str(e)}")
             raise

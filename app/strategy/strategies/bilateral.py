@@ -690,7 +690,7 @@ class Bilateral(AbstractStrategy):
             if not self.calculate:
                 self.nothing_order()
                 return self.order
-            
+
             bool_results = []
             tuple_results = []
 

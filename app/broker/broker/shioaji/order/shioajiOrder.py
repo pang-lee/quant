@@ -5,32 +5,22 @@ import shioaji as sj
 from datetime import datetime
 
 class ShioajiOrderManager(BaseOrderManager):
-    _instance = None
+    def __init__(self, async_queue, log, broker):
+        super().__init__(async_queue, log)
+        self.broker = 'shioaji'
+        self.broker_instance = broker
+        self.cb_queue = queue.Queue()
+        self.start_callback_processor()
 
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(ShioajiOrderManager, cls).__new__(cls)
-        return cls._instance
+    def init_api(self, api):
+        self.api = api
+        return self.api
 
-    def __init__(self, api, async_queue, log, broker):
-        if not hasattr(self, '_initialized'):
-            super().__init__(async_queue, log)
-            self.api = api
-            self.broker = 'shioaji'
-            self.broker_instance = broker
-            self.cb_queue = queue.Queue()
-            self.start_callback_processor()
-
-    @classmethod
-    def reinit_api(cls, api):
+    def reinit_api(self, api):
         """從外部重新初始化 self.api"""
         try:
-            instance = cls._instance  # 獲取單例
-            if instance is None:
-                raise ValueError("ShioajiOrderManager instance 沒有初始化")
-
-            instance.api = api
-            instance.log.info("ShioajiOrderManager - 重新設定shioaji連線")
+            self.init_api(api)
+            self.log.info("ShioajiOrderManager - 重新設定shioaji連線")
         except Exception as e:
             raise RuntimeError(f"ShioajiOrderManager - 重新設定Shioaji失敗: {e}")
 

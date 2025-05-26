@@ -17,15 +17,15 @@ class CalculateCoeffTask(Task):
     @property
     def name(self) -> str:
         return "calculate_coeff"
-    
-    async def execute(self, lock) -> None:
+
+    async def execute(self, **kwargs) -> None:
         try:
             self.log.info(f"運行calculate_coeff task")
-            await self.calculate_coeff(lock)
+            await self.calculate_coeff(kwargs.get('lock'))
         except Exception as e:
             self.log.error(f"calculate_coeff運行錯誤: {str(e)}")
             raise
-        
+
     async def calculate_coeff(self, lock):
         try:
             api = sj.Shioaji()
@@ -35,7 +35,12 @@ class CalculateCoeffTask(Task):
                 fetch_contract=False,
             )
             api.fetch_contracts(contract_download=True)
-            self.log.info(f'剩餘可用API: {api.usage()}')
+
+            try:
+                usage = api.usage()
+                self.log.info(f"剩餘可用API: {usage}\n")
+            except TimeoutError as e:
+                self.log.warning(f"無法獲得 API 使用量: {e}\n")
 
             with lock:
                 setting = open_json_file()
@@ -57,6 +62,10 @@ class CalculateCoeffTask(Task):
 
                         # 獲取歷史 K 棒資料
                         for code in item['code']:
+                            if data_dict[code]:
+                                self.log.info(f"跳過: {code} ({category}), 已經獲取過")
+                                continue
+                            
                             # 根據 category 選擇合約類型
                             if category == 'stock':
                                 contract = api.Contracts.Stocks[code]
@@ -116,6 +125,9 @@ class CalculateCoeffTask(Task):
                         with lock:
                             update_settings(category, item['code'], item['strategy'], {'beta': beta})
 
+            # 登出 API
+            api.logout()
+            self.log.info("Shioaji API logged out")
             return
 
         except Exception as e:

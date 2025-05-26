@@ -14,15 +14,15 @@ class AbstractStrategy(ABC):
         self.item = item
         self.data = datas
         self.log = get_module_logger(f"strategy/{self.item['strategy']}")
-        
+
         if not self.data:
             self.log.info("當前策略沒有獲得資料, 將不做任何行為, 等待下一次的策略循環")
-        
+
         self.symbol = symbol
         self.params = item['params']
         self.redis_k_key = ''
         self.insert_data()
-        
+
         # 處理 profit_stop 參數
         if profit_stop == 0:
             self.profit_stop = 0
@@ -48,7 +48,7 @@ class AbstractStrategy(ABC):
         self.build_position_control()
         self.tz = pytz.timezone(f"{self.params['tz']}")
         self.current_time = datetime.now(tz=self.tz).strftime("%Y-%m-%d %H:%M:%S")
-        
+
     def process_redis_key(self):
         # 檢查 self.item['code'] 是否為列表
         if not isinstance(self.item['code'], list):
@@ -70,14 +70,14 @@ class AbstractStrategy(ABC):
 
     def insert_data(self):
         redis_k_keys = {}  # 用來收集每個 code 對應的 redis_k_key
-        
+
         for code, records in self.data.items():  # key 是 'TMFR1'，records 是列表
             redis_calculate_key = f"{code}_{self.item['strategy']}_calculate"
             redis_k = f"{code}_{self.item['strategy']}_{self.interval}k"
             
             # 儲存每個 code 對應的 redis_k_key
             redis_k_keys[code] = redis_k
-            
+
             # 遍歷每筆記錄
             for record in records:
                 # 提取 tick 數據
@@ -88,15 +88,15 @@ class AbstractStrategy(ABC):
                         self.save_to_redis(redis_calculate_key, tick)
                         # 計算 OHLCV
                         self.calculate_ohlcv(redis_calculate_key, redis_k)
-        
+
         # 根據資料種類的數量決定 self.redis_k_key 是字串還是陣列
         if len(redis_k_keys) == 1:
             self.redis_k_key = list(redis_k_keys.values())[0] # 只有一個 code 時，設為單一字串
         else:
             self.redis_k_key = redis_k_keys  # 多個 code 時，設為陣列
-        
+
         return
-        
+
     def get_from_redis(self, redis_key):
         data = self.redis.hgetall(redis_key)
 

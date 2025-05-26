@@ -1,6 +1,5 @@
 import json
 from data.broker.abc.AbstractDatasource import AbstractDatasource
-from broker.broker.shioaji.verify.shioaji import get_shioaji_instance
 from shioaji import TickFOPv1, TickSTKv1, Exchange, BidAskFOPv1, BidAskSTKv1
 from decimal import Decimal
 import shioaji as sj
@@ -9,21 +8,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class ShioajiDataSource(AbstractDatasource):
-    _instance = None
-    
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(ShioajiDataSource, cls).__new__(cls)
-        return cls._instance
-
-    def __init__(self, simulation=True):
-        if not hasattr(self, '_initialized'):
-            super().__init__()
-            self.simulation = simulation
-            self.api = get_shioaji_instance(simulation=self.simulation)
-            self.log = get_module_logger('data/shioaji_data')
-            self._init_callbacks()
-            self._initialized = True
+    def __init__(self, brokers):
+        super().__init__()
+        self.api = brokers['shioaji'].api
+        self.log = get_module_logger('data/shioaji_data')
+        self._init_callbacks()
 
     def _init_callbacks(self):
         """初始化報價回調"""

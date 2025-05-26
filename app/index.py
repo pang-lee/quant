@@ -11,10 +11,14 @@ from utils.log import start_queue_listener, stop_all_listeners
 # 同時運行 Discord 客戶端和主函數
 async def run_all():
     try:
+        items = open_json_file()['items']
         queue = asyncio.Queue()
-        broker = load_brokers(queue, open_json_file()['items'])
+        broker = load_brokers(queue, items)    
         bot = DC(queue, broker)
         asyncio.create_task(bot.start_bot())
+
+        # 運行數據源獲取
+        DatasourceFactory.run_data_sources(items, broker)
 
         main_logger, _ = start_queue_listener('main', multiprocessing.Queue())
         process_pool = concurrent.futures.ProcessPoolExecutor(max_workers=2)  # 進程池
@@ -36,6 +40,11 @@ async def run_all():
 
         scheduler = TaskScheduler(process_lock)
         scheduler.start()
+        
+        while True:
+            pass
+        
+        return
 
         while True:
             with process_lock:
@@ -58,10 +67,7 @@ async def run_all():
         stop_all_listeners()
 
 if __name__ == "__main__":
-    try:
-        # 運行數據源獲取
-        DatasourceFactory.run_data_sources(open_json_file()['items'])
-        
+    try:        
         # 運行所有任務
         asyncio.run(run_all())
 
