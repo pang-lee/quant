@@ -8,13 +8,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class shioaji(AbstractBroker):
-    _shioaji_instance = None  # 用於存儲 Redis 單例實例
-
     def __init__(self, async_queue, items, log):
         super().__init__(items, log)
         # self.simulation = bool(strtobool(os.getenv('IS_DEV', 'true')))
         self.simulation = True
-        self.api = self.get_shioaji_instance(self.simulation)
+        self.api = self._login_shioaji()
         self.order_manager = ShioajiOrderManager(async_queue, log, self)
         self.order_manager.init_api(self.api)
         self._init_params()
@@ -25,37 +23,30 @@ class shioaji(AbstractBroker):
         self.order_events = {}  # 存儲訂單的 Event 對象
         self.order_results = {}  # 存儲訂單的回調結果
 
-    @classmethod
-    def get_shioaji_instance(cls, simulation=True):
-        if cls._shioaji_instance is None:  # 如果尚未創建連線，則創建
-            api = sj.Shioaji(simulation=simulation)
-            api.login(
-                api_key=os.getenv('API_KEY'),
-                secret_key=os.getenv('SECRET_KEY'),
-                subscribe_trade=simulation,
-                fetch_contract=False,
-            )
-            api.fetch_contracts(contract_download=True)
+    def _login_shioaji(self):
+        api = sj.Shioaji(simulation=self.simulation)
+        api.login(
+            api_key=os.getenv("API_KEY"),
+            secret_key=os.getenv("SECRET_KEY"),
+            subscribe_trade=self.simulation,
+            fetch_contract=False,
+        )
+        api.fetch_contracts(contract_download=True)
+        return api
 
-            cls._shioaji_instance = api
-
-        return cls._shioaji_instance  # 返回已存在的連線實例
-
-    @classmethod
-    def logout_shioaji(cls):
+    def logout_shioaji(self):
         # simulation = bool(strtobool(os.getenv('IS_DEV', 'true')))
-        simulation = True
-        if cls._shioaji_instance is not None:
-            try:
-                _shioaji_instance.logout()
-                _shioaji_instance = None
-                api = cls.get_shioaji_instance(simulation)
-                cls.reinit_api(api)
-                ShioajiDataSource.reinit_api(api)
-            except Exception as e:
-                cls.log.error(f"shioaji登出出錯: {e}")
-        else:
-            cls.log.error("找不到shioaji instance, 無法登出")
+        self.simulation = True
+        try:
+            self.api.logout()
+            self.log.info(f"shioaji登出")
+            self.api = None
+            api = self._login_shioaji()
+            self.log.info(f"shioaji重新登入: {api}")
+            self.reinit_api(api)
+            return self
+        except Exception as e:
+            self.log.error(f"shioaji登出出錯: {e}")
 
     def reinit_api(self, api):
         """從外部重新初始化 self.api"""
@@ -63,7 +54,7 @@ class shioaji(AbstractBroker):
             self.api = api
             self.order_manager.reinit_api(api)
             self._init_params()  # 重新設定params
-            self.log.info("ShioajiClient - 重新設定shioaji連線")
+            self.log.info(f"重新設定shioajiClient完成, 即將重設shioajiDatasource")
         except Exception as e:
             self.log.error(f"ShioajiClient - 重新設定Shioaji失敗: {e}")
 

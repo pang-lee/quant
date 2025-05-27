@@ -20,9 +20,9 @@ class ShioajiOrderManager(BaseOrderManager):
         """從外部重新初始化 self.api"""
         try:
             self.init_api(api)
-            self.log.info("ShioajiOrderManager - 重新設定shioaji連線")
+            self.log.info(f"重新登入後, 並更新shiaojiOrderManager的api: {api}")
         except Exception as e:
-            raise RuntimeError(f"ShioajiOrderManager - 重新設定Shioaji失敗: {e}")
+            self.log.error(f"ShioajiOrderManager - 重新設定Shioaji失敗: {e}")
 
     def _handle_order(self, action, contract, account, order_params):
         try:

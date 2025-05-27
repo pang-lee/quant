@@ -13,22 +13,21 @@ async def run_all():
     try:
         items = open_json_file()['items']
         queue = asyncio.Queue()
-        broker = load_brokers(queue, items)    
-        bot = DC(queue, broker)
+        brokers = load_brokers(queue, items)
+        bot = DC(queue, brokers)
         asyncio.create_task(bot.start_bot())
 
         # 運行數據源獲取
-        DatasourceFactory.run_data_sources(items, broker)
-
+        datasources = DatasourceFactory.run_data_sources(items, brokers)
         main_logger, _ = start_queue_listener('main', multiprocessing.Queue())
         process_pool = concurrent.futures.ProcessPoolExecutor(max_workers=2)  # 進程池
         thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2)  # 線程池
         order_status, pending_task = multiprocessing.Manager().dict(), multiprocessing.Manager().dict()
         process_lock, async_lock  = multiprocessing.Manager().Lock(), asyncio.Lock()
 
-        broker_lock =  {
+        brokers_lock =  {
             broker_name: threading.Lock()  # 每个券商对应一个线程锁
-            for broker_name, _ in broker.items()
+            for broker_name, _ in brokers.items()
         }
 
         strategy_lock = {
@@ -38,13 +37,8 @@ async def run_all():
             if item.get('strategy')
         }
 
-        scheduler = TaskScheduler(process_lock)
+        scheduler = TaskScheduler(process_lock=process_lock, brokers=brokers, datasources=datasources)
         scheduler.start()
-        
-        while True:
-            pass
-        
-        return
 
         while True:
             with process_lock:
@@ -53,7 +47,7 @@ async def run_all():
             async with async_lock: # 使用鎖來確保 process_item 只有一個實例在執行
                 await process_item(
                     items, queue, process_pool, thread_pool,
-                    broker, process_lock, broker_lock,
+                    brokers, process_lock, brokers_lock,
                     order_status, strategy_lock, pending_task, main_logger
                 )
 

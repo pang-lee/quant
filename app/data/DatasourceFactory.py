@@ -8,6 +8,7 @@ import pandas as pd
 class DatasourceFactory:
     _datasource_classes = None  # 存放資料源類別字典
     _datasources_loaded = False  # 標記是否已加載資料源
+    _datasource_instance = {} # 存放資料源實例
 
     @staticmethod
     def _ensure_datasources_loaded():
@@ -18,14 +19,14 @@ class DatasourceFactory:
 
     @staticmethod
     def create_datasource(name, product, brokers):
-        DatasourceFactory._ensure_datasources_loaded()
-        
         if name not in DatasourceFactory._datasource_classes:
             raise ValueError(f"Unknown datasource: {name}")
 
         # 創建資料源實例並調用方法
         datasource_class = DatasourceFactory._datasource_classes[name]
-        return datasource_class(brokers).fetch_market_data(product)
+        datasoruce_instance = datasource_class(brokers)
+        DatasourceFactory._datasource_instance[name] = datasoruce_instance
+        return datasoruce_instance.fetch_market_data(product)
 
     # -------------- 資料行情訂閱 --------------------
     @staticmethod
@@ -35,7 +36,8 @@ class DatasourceFactory:
 
         # 實盤行情資料
         set_redis_consumer(filtered_symbols)
-
+        DatasourceFactory._ensure_datasources_loaded()
+        
         # 提取需要訂閱的項目
         shioaji_subscription = []
         # 提取有效的 datasource 並生成數據源
@@ -56,7 +58,7 @@ class DatasourceFactory:
             thread.daemon = True
             thread.start()
 
-        return
+        return DatasourceFactory._datasource_instance
 
     # -------------- 永豐行情訂閱 --------------------
     @staticmethod

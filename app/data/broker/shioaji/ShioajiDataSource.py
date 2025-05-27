@@ -26,19 +26,15 @@ class ShioajiDataSource(AbstractDatasource):
         except Exception as e:
             self.log.error(f"callbacks 設定失敗: {e}")
 
-    @classmethod
-    def reinit_api(cls, api):
+    def reinit_api(self, client):
         """從外部重新初始化單例的 api"""
         try:
-            instance = cls._instance  # 獲取單例
-            if instance is None:
-                raise ValueError("ShioajiDataSource instance 沒有初始化")
-
-            instance.api = api
-            instance._init_callbacks()  # 重新設定 callbacks
-            instance.log.info("ShioajiDataSource - 重新設定shioaji連線")
+            self.log.info("ShioajiDataSource - 重新設定shioaji連線")
+            self.api = client.api
+            self._init_callbacks()  # 重新設定 callbacks
+            self.log.info("ShioajiDataSource - 新shioaji連線完成")
         except Exception as e:
-            raise RuntimeError(f"ShioajiDataSource - 重新設定Shioaji失敗: {e}")
+            self.log.error(f"ShioajiDataSource - 重新設定Shioaji失敗: {e}")
 
     def fetch_market_data(self, product):
         for item in product:

@@ -7,11 +7,13 @@ from typing import List, Dict
 from utils.task import Facade
 
 class TaskScheduler:
-    def __init__(self, process_lock, timezone: str = "Asia/Taipei"):
+    def __init__(self, timezone: str = "Asia/Taipei", **kwargs):
         """
         初始化任務調度器
         """
-        self.process_lock = process_lock
+        self.process_lock = kwargs.get('process_lock')
+        self.brokers = kwargs.get('brokers')
+        self.datasources = kwargs.get('datasources')
         self.scheduler = AsyncIOScheduler(
             executors={'default': AsyncIOExecutor()},
             job_defaults={'coalesce': False, 'max_instances': 3},
@@ -22,9 +24,7 @@ class TaskScheduler:
         self.log = get_module_logger('utils/scheduler')
 
     def _load_task_configs(self) -> List[Dict]:
-        """
-        定義任務配置（可以從配置文件或數據庫加載）
-        """
+        """定義任務配置（可以從配置文件或數據庫加載）"""
         return [
             {
                 "name": "calculate_coeff",
@@ -44,8 +44,8 @@ class TaskScheduler:
             {
                 "name": "reinit_shioaji",
                 "trigger": CronTrigger(hour=8, minute=0),
-                "kwargs": {}
-            },
+                "kwargs": {"broker": self.brokers['shioaji'], "datasource": self.datasources['ShioajiDataSource']}
+            },         
             {
                 "name": "calculate_coeff",
                 "trigger": CronTrigger(hour=14, minute=15),
@@ -64,7 +64,7 @@ class TaskScheduler:
             {
                 "name": "reinit_shioaji",
                 "trigger": CronTrigger(hour=14, minute=45),
-                "kwargs": {}
+                "kwargs": {"broker": self.brokers['shioaji'], "datasource": self.datasources['ShioajiDataSource']}
             }
         ]
 
