@@ -1,6 +1,7 @@
 from utils.task.CalculateCoeffTask import CalculateCoeffTask
 from utils.task.ClearRedisTask import ClearRedisTask
 from utils.task.ReinitShioaji import ReinitShioaji
+from utils.task.CalculateSMC import CalculateSMC
 from utils.log import get_module_logger
 
 class Facade:
@@ -12,7 +13,8 @@ class Facade:
         self.tasks = [
             CalculateCoeffTask(),
             ClearRedisTask(),
-            ReinitShioaji()
+            ReinitShioaji(),
+            CalculateSMC()
         ]
 
     async def run_task(self, task_name, **kwargs) -> None:

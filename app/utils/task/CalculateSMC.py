@@ -18,7 +18,7 @@ class CalculateSMC(Task):
 
     async def execute(self, **kwargs) -> None:
         try:
-            self.log.info("運行calculate_smc task")
+            self.log.info("\n\n運行calculate_smc task")
             self._init_params()
             self.filter_settings()
 
@@ -55,7 +55,7 @@ class CalculateSMC(Task):
         return self.strategy
 
     def filter_monitor(self):
-        self.log.info(f"將要重新計算monitor監控為False(有進場或止損出場)的SMC, 過濾出: {len(self.strategy)} 個\n 策略: {self.strategy}")
+        self.log.info(f"將要重新計算monitor監控為False(有進場或止損出場)的SMC, 過濾出: {len(self.strategy)} 個\n策略: {self.strategy}")
         
         # 在 self.strategy 上進一步過濾 monitor 為 False 的項目
         for key in list(self.strategy.keys()):  # 使用 list 避免運行時修改字典
@@ -86,64 +86,64 @@ class CalculateSMC(Task):
             self.log.info(f"剩餘可用API: {usage}\n")
         except TimeoutError as e:
             self.log.warning(f"無法獲得 API 使用量: {e}\n")
-            
+
         # 計算 end 和 begin 日期
         end = datetime.now(tz=pytz.timezone('Asia/Taipei')).strftime('%Y-%m-%d')  # 當前日期，例如 '2025-04-15'
-        begin = (datetime.now(tz=pytz.timezone('Asia/Taipei')) - timedelta(days=5)).strftime('%Y-%m-%d')  # 當前日期減 3 天，例如 '2025-04-12'
+        begin = (datetime.now(tz=pytz.timezone('Asia/Taipei')) - timedelta(days=5)).strftime('%Y-%m-%d')  # 當前日期減 5 天，例如 '2025-04-12'
 
         # 遍歷 self.strategy 中的每個項目
         for category, items in self.strategy.items():
-            # 遍歷每個 code, 獲取歷史 K 棒資料
-            for code in items['code']:
-                try:
-                    if self.data_dict[code]:
-                        self.log.info(f"跳過: {code} ({category}), 已經獲取過")
-                        continue
+            for item in items:
+                for code in item['code']: # 遍歷每個 code, 獲取歷史 K 棒資料
+                    try:
+                        if self.data_dict[code]:
+                            self.log.info(f"跳過: {code} ({category}), 已經獲取過")
+                            continue
 
-                    # 根據 category 選擇合約類型
-                    if category == 'stock':
-                        contract = api.Contracts.Stocks[code]
-                    elif category == 'future':
-                        contract = api.Contracts.Futures[code]
-                    else:
-                        self.log.error(f"未知的分類 key：{category}")
-                        continue
+                        # 根據 category 選擇合約類型
+                        if category == 'stock':
+                            contract = api.Contracts.Stocks[code]
+                        elif category == 'future':
+                            contract = api.Contracts.Futures[code]
+                        else:
+                            self.log.error(f"未知的分類 key：{category}")
+                            continue
 
-                    self.log.info(f"獲取k棒資料中:{code}")
+                        self.log.info(f"獲取k棒資料中:{code}")
 
-                    # 調用 API 獲取歷史 K 棒資料
-                    kbars = api.kbars(
-                        contract=contract,
-                        start=begin,  # 例如 '2025-04-14'
-                        end=end,      # 例如 '2025-04-14'
-                    )
+                        # 調用 API 獲取歷史 K 棒資料
+                        kbars = api.kbars(
+                            contract=contract,
+                            start=begin,  # 例如 '2025-04-14'
+                            end=end,      # 例如 '2025-04-14'
+                        )
 
-                    # 轉為 DataFrame
-                    df = pd.DataFrame({**kbars})
-                            
-                    self.log.info(f"k棒獲取完畢: {df.head(5)}")
+                        # 轉為 DataFrame
+                        df = pd.DataFrame({**kbars})
 
-                    # 確保 ts 欄位為 datetime，並設置為索引
-                    df['ts'] = pd.to_datetime(df['ts'])
-                    # 將 OHLCV 欄位名稱改為小寫
-                    df = df.rename(columns={ 
-                        'Open': 'open',
-                        'High': 'high',
-                        'Low': 'low',
-                        'Close': 'close',
-                        'Volume': 'volume'
-                    })
-                    df.set_index('ts', inplace=True)
-                    self.data_dict[code] = df
-                    self.log.info(f"資料獲取完畢")
+                        self.log.info(f"k棒獲取完畢: {df.head(5)}")
 
-                    # 檢查 data_dict 是否為空
-                    if not self.data_dict:
-                        self.log.error(f"未獲取到任何 {category} 的 K 棒資料，data_dict 為空")
-                        continue  # 跳過後續處理，例如窗口篩選
-  
-                except Exception as e:
-                    self.log.error(f"獲取: {code}, 失敗: {e}")
+                        # 確保 ts 欄位為 datetime，並設置為索引
+                        df['ts'] = pd.to_datetime(df['ts'])
+                        # 將 OHLCV 欄位名稱改為小寫
+                        df = df.rename(columns={ 
+                            'Open': 'open',
+                            'High': 'high',
+                            'Low': 'low',
+                            'Close': 'close',
+                            'Volume': 'volume'
+                        })
+                        df.set_index('ts', inplace=True)
+                        self.data_dict[code] = df
+                        self.log.info(f"資料獲取完畢")
+
+                        # 檢查 data_dict 是否為空
+                        if not self.data_dict:
+                            self.log.error(f"未獲取到任何 {category} 的 K 棒資料，data_dict 為空")
+                            continue  # 跳過後續處理，例如窗口篩選
+                        
+                    except Exception as e:
+                        self.log.error(f"shioaji獲取: {code}, 歷史資料失敗: {e}")
 
         # 登出 API
         api.logout()
