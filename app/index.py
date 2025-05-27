@@ -13,16 +13,16 @@ async def run_all():
     try:
         items = open_json_file()['items']
         queue = asyncio.Queue()
-        # brokers = load_brokers(queue, items)
-        # bot = DC(queue, brokers)
-        # asyncio.create_task(bot.start_bot())
+        brokers = load_brokers(queue, items)
+        bot = DC(queue, brokers)
+        asyncio.create_task(bot.start_bot())
 
-        # 運行數據源獲取
-        # datasources = DatasourceFactory.run_data_sources(items, brokers)
+        運行數據源獲取
+        datasources = DatasourceFactory.run_data_sources(items, brokers)
         
         
-        datasources={'ShioajiDataSource': ''}
-        brokers = {'shioaji': ''}
+        # datasources={'ShioajiDataSource': ''}
+        # brokers = {'shioaji': ''}
         
         main_logger, _ = start_queue_listener('main', multiprocessing.Queue())
         process_pool = concurrent.futures.ProcessPoolExecutor(max_workers=2)  # 進程池
@@ -44,9 +44,6 @@ async def run_all():
 
         scheduler = TaskScheduler(process_lock=process_lock, brokers=brokers, datasources=datasources)
         scheduler.start()
-        
-        while True:
-            await asyncio.sleep(1)
 
         while True:
             with process_lock:

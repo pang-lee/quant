@@ -36,16 +36,6 @@ class TaskScheduler:
                 "trigger": CronTrigger(hour=6, minute=10),
                 "kwargs": {"redo": True}
             },
-            
-                        {
-                "name": "calculate_smc",
-                "trigger": CronTrigger(minute='*'),
-                "kwargs": {"redo": True}
-            },
-            
-            
-            
-            
             {
                 "name": "clear_redis",
                 "trigger": CronTrigger(hour=7, minute=0),
