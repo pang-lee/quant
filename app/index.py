@@ -17,7 +17,7 @@ async def run_all():
         bot = DC(queue, brokers)
         asyncio.create_task(bot.start_bot())
 
-        運行數據源獲取
+        # 運行數據源獲取
         datasources = DatasourceFactory.run_data_sources(items, brokers)
         
         
