@@ -19,11 +19,6 @@ async def run_all():
 
         # 運行數據源獲取
         datasources = DatasourceFactory.run_data_sources(items, brokers)
-        
-        
-        # datasources={'ShioajiDataSource': ''}
-        # brokers = {'shioaji': ''}
-        
         main_logger, _ = start_queue_listener('main', multiprocessing.Queue())
         process_pool = concurrent.futures.ProcessPoolExecutor(max_workers=2)  # 進程池
         thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2)  # 線程池
@@ -44,7 +39,7 @@ async def run_all():
 
         scheduler = TaskScheduler(process_lock=process_lock, brokers=brokers, datasources=datasources)
         scheduler.start()
-
+        
         while True:
             with process_lock:
                 items = {k: v for k, v in open_json_file()['items'].items() if v}

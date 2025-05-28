@@ -47,7 +47,7 @@ class AbstractStrategy(ABC):
         self.analyze_redis_key = f"{self.symbol}:{self.item['strategy']}:{self.process_redis_key()}_analyze"
         self.build_position_control()
         self.tz = pytz.timezone(f"{self.params['tz']}")
-        self.current_time = datetime.now(tz=self.tz).strftime("%Y-%m-%d %H:%M:%S")
+        self.current_time = datetime.now(tz=self.tz)
 
     def process_redis_key(self):
         # 檢查 self.item['code'] 是否為列表
@@ -231,12 +231,17 @@ class AbstractStrategy(ABC):
 
                 module = importlib.import_module(f'strategy.calculation.{module_name}')
                 calculation_class = getattr(module, class_name)
-                calculation_instance = calculation_class(self.params, pd.DataFrame(data), f"strategy/{self.item['strategy']}")
+
+                if isinstance(data, pd.DataFrame): # 檢查 data 是否為 Pandas DataFrame, 如果已經是 DataFrame，直接傳遞
+                    calculation_instance = calculation_class(self.params, data, f"strategy/{self.item['strategy']}")
+                else:
+                    calculation_instance = calculation_class(self.params, pd.DataFrame(data), f"strategy/{self.item['strategy']}")
+
                 self.calculate.append(calculation_instance)
             except ImportError:
-                raise ValueError(f"Calculation type '{calc_type}' does not exist.")
+                raise ValueError(f"Calculation type '{calc_type}' 不存在.")
             except AttributeError:
-                raise ValueError(f"Calculation class '{calc_type.capitalize()}' not found in module '{calc_type}'.")
+                raise ValueError(f"Calculation class '{calc_type.capitalize()}' 沒有找到 '{calc_type}'.")
 
     def get_last_ts_data(self):
         if not self.data:

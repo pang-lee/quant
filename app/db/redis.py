@@ -80,7 +80,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
     for category_key, category_items in items.items():
         # 遍历该类别下的每个商品条目
         for item in category_items:
-            # 检查 params 是否存在且包含 cross_day 字段，且其值为 False
+            # 检查 params 是否存在且包含 cross_day 字段，且其值为 False (當沖策略, 不跨時間跨天計算)
             if item.get('params', {}).get('cross_day', False) is False:
                 # 将符合条件的策略加入 deprecated
                 deprecated.append(item['strategy'])
@@ -163,7 +163,6 @@ async def clear_redis(lock, output_dir="data/preserve"):
             
         return
 
-    # 儲存資料的輔助函數
     def save_data(data, strategy, key, output_dir):
         # 構建目錄結構：data/preserve/{strategy}/{key}
         key_dir = os.path.join(output_dir, strategy, key)
@@ -276,7 +275,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
         return v
     
     def fetch_data(data, output_dir):
-        # 處理 data 陣列（例如 ['TMFR1_bilateral_1k', 'MXFR1_statarb1_60k', ...]）
+        # 處理 data 陣列（例如 ['TMFR1_bilateral_1k', 'MXFR1_statarb1_60k', ...]）, 產生於Abstrastrategy
         result = []
         seen_pairs = set()  # 去重 (code, strategy, timeframe)
         
@@ -523,7 +522,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
 
         save_data(data, strategy, key, output_dir)
 
-    # # 重新獲得部分歷史行情資料
+    # 重新獲得部分歷史行情資料
     refetch_list = fetch_data(refetch_data, output_dir)
     history_refetch(refetch_list)
     
