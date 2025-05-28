@@ -145,14 +145,14 @@ class Tmfrsmc(AbstractStrategy):
                     'capital': capital1
                 })
 
-                strategy_order_info['position']['profit'] = new_profit
-                strategy_order_info['position']['loss'] = new_loss
-                strategy_order_info['position']['origin'] = stock_price1
-
+                pos1_dict['position']['profit'] = new_profit
+                pos1_dict['position']['loss'] = new_loss
+                pos1_dict['position']['origin'] = price1
+                
                 # 新止盈價位回寫redis
                 self.execute_position_control('set', **{
                     'key': self.position_redis_key,
-                    'data': {f'{code1}': strategy_order_info}
+                    'data': {f'{code1}': pos1_dict}
                 })
                     
                 self.log.info(f"當前多倉位動態價格更新, 舊止盈:{take_profit1}, 舊止損:{stop_loss1}, 新止盈:{new_profit}, 新止損:{new_loss}, 原始價格:{origin_price1}, 當前價格:{price1}")
@@ -161,7 +161,7 @@ class Tmfrsmc(AbstractStrategy):
         elif position1 < 0: # 空倉
             pl1 = round(((origin_price1 - price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))), 2)
             
-            if self.force_close(data_time, trading_periods):
+            if self.force_close(data_time, trading_periods): # 判斷是否超時平倉 
                 self.log.info(f"當前商品{code1}已經超時要平倉, 止盈:{take_profit1}, 止損:{stop_loss1}, 原始價格:{origin_price1}, 當前價格:{price1}")
                 self.publish_order(-4, **{
                     'code': code1,
@@ -209,15 +209,15 @@ class Tmfrsmc(AbstractStrategy):
                     'loss': new_loss,
                     'capital': capital1
                 })
-                    
-                strategy_order_info['position']['profit'] = new_profit
-                strategy_order_info['position']['loss'] = new_loss
-                strategy_order_info['position']['origin'] = stock_price1
-                    
+
+                pos1_dict['position']['profit'] = new_profit
+                pos1_dict['position']['loss'] = new_loss
+                pos1_dict['position']['origin'] = price1
+                
                 # 新止盈價位回寫redis
                 self.execute_position_control('set', **{
                     'key': self.position_redis_key,
-                    'data': {f'{code1}': strategy_order_info}
+                    'data': {f'{code1}': pos1_dict}
                 })
 
                 self.log.info(f"當前空倉位動態價格更新, 舊止盈:{take_profit1}, 舊止損:{stop_loss1}, 新止盈:{new_profit}, 新止損:{new_loss}, 原始價格:{origin_price1}, 當前價格:{price1}")
