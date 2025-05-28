@@ -129,6 +129,7 @@
                     "ob_bottom": 0,
                     "direction": 0,
                     "monitor": false,
+                    "night": true,
                     "position_type": "dynamic",
                     "broker": "shioaji",
                     "datasource": "shioaji",
