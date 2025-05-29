@@ -529,7 +529,7 @@ class Tmfrsmc(AbstractStrategy):
     def execute(self):
         try:
             if not self.params['monitor'] or self.params['direction'] == 0: # SMC判定不監控
-                self.log.info(f"當前監控為False: {self.params['monitor']} 或 大時間無方向: {self.params['direction']}")
+                self.log.info(f"當前監控為: {self.params['monitor']} 或 大時間無方向: {self.params['direction']}")
                 self.nothing_order()
                 return self.order
             
