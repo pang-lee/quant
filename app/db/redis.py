@@ -65,7 +65,7 @@ def create_consumer_group(redis_cli, stream_key, group):
 async def clear_redis(lock, output_dir="data/preserve"):
     redis_conn = get_redis_connection()
     
-    with lock:
+    with lock: # 讀取setting.json
         items = {k: v for k, v in open_json_file()['items'].items() if v}
     
     # 確保基礎輸出目錄存在
