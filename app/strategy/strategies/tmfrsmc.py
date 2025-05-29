@@ -32,11 +32,13 @@ class Tmfrsmc(AbstractStrategy):
         # 轉換為 Pandas DataFrame
         k_df = pd.DataFrame(self.k_data)
 
-        # 將 'ts' 欄位轉為 datetime 格式，並確保時區一致
-        k_df['ts'] = pd.to_datetime(k_df['ts']).dt.tz_localize(self.tz)
+        # 將 'ts' 欄位轉為 datetime 格式，移除時區並轉為 datetime64[ns]
+        k_df['ts'] = pd.to_datetime(k_df['ts'])
+        start_time = pd.Timestamp(start_time).tz_localize(None)
+        current_time = pd.Timestamp(self.current_time).tz_localize(None)
         
         # 過濾時間範圍：從昨天 08:45 到當前時刻
-        k_df = k_df[(k_df['ts'] >= start_time) & (k_df['ts'] <= self.current_time)]
+        k_df = k_df[(k_df['ts'] >= start_time) & (k_df['ts'] <= current_time)]
 
         # 如果沒有符合時間範圍的資料，返回 0
         if k_df.empty:
@@ -45,7 +47,7 @@ class Tmfrsmc(AbstractStrategy):
         
         k_df.set_index('ts', inplace=True)
         latest_k_ts = k_df.index[-1].to_pydatetime()
-        
+
         if self.last_1min_k is None:
             return super().save_to_redis(f"last_k_1min_{self.item['code'][0]}_{self.item['strategy']}", {'ts': latest_k_ts.strftime("%Y-%m-%d %H:%M:%S")}, type='set')
 
@@ -239,10 +241,10 @@ class Tmfrsmc(AbstractStrategy):
                     "策略": self.item['strategy'],
                     '數量': params.get('share_per_trade'),
                     '當前點數': params.get('current_price'),
-                    'OB價位高低點': f"Top: {self.params['ob_top']} ~ Bottom: {self.params['ob_bottom']}",
-                    '4HR方向VWAP價位': f"{self.params['direction']}/{params.get('4hr_vwap')}",
-                    '15分K收盤價/VWAP價位': f"{params.get('15min_close')}/{params.get('15min_vwap')}",
-                    '5分K收盤價/VWAP價位': f"{params.get('5min_close')}/{params.get('5min_vwap')}",
+                    'OB價位高低點': f"Top: {round(self.params['ob_top'], 2)} ~ Bottom: {round(self.params['ob_bottom'], 2)}",
+                    '4HR方向VWAP價位': f"{self.params['direction']}/{round(params.get('4hr_vwap'), 2)}",
+                    '15分K收盤價/VWAP價位': f"{params.get('15min_close')}/{round(params.get('15min_vwap'), 2)}",
+                    '5分K收盤價/VWAP價位': f"{params.get('5min_close')}/{round(params.get('5min_vwap'), 2)}",
                     '5分K/VWAP標準差(2倍)': params.get('5min_std'),
                     '進場類型': '多',
                     '動態止盈點數': params.get('profit_ratio'),
@@ -276,10 +278,10 @@ class Tmfrsmc(AbstractStrategy):
                     '當前點數': params.get('current_price'),
                     '數量': params.get('share_per_trade'),
                     '當前點數': params.get('current_price'),
-                    'OB價位高低點': f"Top: {self.params['ob_top']} ~ Bottom: {self.params['ob_bottom']}",
-                    '4HR方向VWAP價位': f"{self.params['direction']}/{params.get('4hr_vwap')}",
-                    '15分K收盤價/VWAP價位': f"{params.get('15min_close')}/{params.get('15min_vwap')}",
-                    '5分K收盤價/VWAP價位': f"{params.get('5min_close')}/{params.get('5min_vwap')}",
+                    'OB價位高低點': f"Top: {round(self.params['ob_top'], 2)} ~ Bottom: {round(self.params['ob_bottom'], 2)}",
+                    '4HR方向VWAP價位': f"{self.params['direction']}/{round(params.get('4hr_vwap'), 2)}",
+                    '15分K收盤價/VWAP價位': f"{params.get('15min_close')}/{round(params.get('15min_vwap'), 2)}",
+                    '5分K收盤價/VWAP價位': f"{params.get('5min_close')}/{round(params.get('5min_vwap'), 2)}",
                     '5分K/VWAP標準差(2倍)': params.get('5min_std'),
                     '進場類型': '空',
                     '動態止盈點數': params.get('profit_ratio'),
@@ -488,7 +490,7 @@ class Tmfrsmc(AbstractStrategy):
                 '15min_vwap': time_15min_data['vwap'],
                 '5min_close': time_5min_data['close'],
                 '5min_vwap': time_5min_data['vwap'],
-                '5min_std': f"(Upper: {time_5min_data['vwap_upper_2std']}, Lower: {time_5min_data['vwap_lower_2std']})",
+                '5min_std': f"(Upper: {round(time_5min_data['vwap_upper_2std'], 2)}, Lower: {round(time_5min_data['vwap_lower_2std'], 2)})",
                 'profit_ratio': self.params['profit_ratio1'],
                 'stop_ratio': self.params['stop_ratio1'],
                 'comm': self.params['commission1'],
@@ -512,7 +514,7 @@ class Tmfrsmc(AbstractStrategy):
                 '15min_vwap': time_15min_data['vwap'],
                 '5min_close': time_5min_data['close'],
                 '5min_vwap': time_5min_data['vwap'],
-                '5min_std': f"(Upper: {time_5min_data['vwap_upper_2std']}, Lower: {time_5min_data['vwap_lower_2std']})",
+                '5min_std': f"(Upper: {round(time_5min_data['vwap_upper_2std'], 2)}, Lower: {round(time_5min_data['vwap_lower_2std'], 2)})",
                 'profit_ratio': self.params['profit_ratio1'],
                 'stop_ratio': self.params['stop_ratio1'],
                 'comm': self.params['commission1'],
@@ -533,11 +535,11 @@ class Tmfrsmc(AbstractStrategy):
             
             result_k = self.load_k()
 
-            if result_k[0] is False: # 判斷 load_k 的返回值
+            if result_k is False: # 判斷 load_k 的返回值
                 self.log.info("load_k 返回 False, 不進行運算")
                 self.nothing_order()
                 return self.order
-            
+
             # 將三種資料的運算添加
             self.load_calculations(result_k[0])
             self.load_calculations(result_k[1])
@@ -551,7 +553,7 @@ class Tmfrsmc(AbstractStrategy):
             for idx, calculation in enumerate(self.calculate):
                 result = calculation.execute(**self.window_series[idx])
                 self.tuple_results.append({'timeframe': self.window_series[idx]['timeframe'], 'result': result})  # 保存 tuple 类型的结果
-            
+
             # 提取所有 result 的第一個元素
             first_elements = [res['result'][0] for res in self.tuple_results]
             self.log.info(f"運算完畢結果, 僅提取第一個數值來看交易行為: {first_elements}")

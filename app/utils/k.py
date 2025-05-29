@@ -30,12 +30,10 @@ def convert_ohlcv(df, freq=60):
             else:
                 session_type = "other"
                 session_start = pd.NaT
-                print(f"Assigned 'other' to timestamp: {ts}")
-            
-            print(f"Result: session_type={session_type}, session_start={session_start}")
+
             return pd.Series([session_type, session_start], index=["session_type", "session_start"])
         except Exception as e:
-            print(f"Error in classify_session for {ts}: {e}")
+            print(f"時間轉換出現錯誤 {ts}: {e}")
             return pd.Series([None, None], index=["session_type", "session_start"])
 
     # 修改1: 使用 .loc 明確賦值
