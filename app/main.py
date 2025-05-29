@@ -168,12 +168,18 @@ def is_in_stop_time(current_time, stop_time_ranges):
             return True
     return False
 
+# 判斷是否需要 night 過濾（下午 2:00 後）
+def night_filter(current_time):
+    afternoon_2pm = datetime.strptime("14:00", "%H:%M").time()
+    apply_filter = current_time > afternoon_2pm
+    return apply_filter
+
 # 主程序(遍歷商品列表並提交訊號計算和下單任務)
 async def process_item(items, queue, process_pool, thread_pool, brokers, p_lock, broker_lock, order_status, strategy_lock, pending_task, log):
     # 獲取當前時間（考慮時區）
     current_time = datetime.datetime.now(pytz.timezone("Asia/Taipei")).time()
 
-    # 過濾掉訂單未完成的策略
+    # 過濾策略
     stock_codes = {}
     for symbol, item_list in items.items():
         filtered_item_list = []
@@ -197,6 +203,11 @@ async def process_item(items, queue, process_pool, thread_pool, brokers, p_lock,
                 if is_in_stop_time(current_time, stop_time_ranges):
                     log.info(f"跳過 strategy: {strategy}，當前時間 {current_time} 在停止時間段內: {stop_time_list}")
                     continue
+
+            # 應用 night 過濾（僅在下午 2:00 後）
+            if night_filter and not item.get("params", {}).get("night", False):
+                log.info(f"跳過 strategy: {strategy}，night 未設定或為 False")
+                continue
 
             filtered_item_list.append(item)
         
