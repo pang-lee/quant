@@ -156,8 +156,8 @@ def parse_stop_time(stop_time_list):
     
     for time_range in stop_time_list:
         start_str, end_str = time_range.split('-')
-        start_time = datetime.datetime.strptime(start_str.strip(), "%H:%M").time()
-        end_time = datetime.datetime.strptime(end_str.strip(), "%H:%M").time()
+        start_time = datetime.strptime(start_str.strip(), "%H:%M").time()
+        end_time = datetime.strptime(end_str.strip(), "%H:%M").time()
         stop_time_ranges.append((start_time, end_time))
 
     return stop_time_ranges
