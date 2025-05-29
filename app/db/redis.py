@@ -532,7 +532,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
         log.info("成功清空當前 Redis 資料庫, 將重新添加redis的consumer_gruop")
         # 過濾 night 為 True 的資料
         filtered_data = {
-            key: [item for item in value if item["params"].get("night") is True]
+            key: [item for item in value if item["params"].get("night", False) is True]
             for key, value in items.items()
         }
         # 移除空陣列
