@@ -1,4 +1,5 @@
 import asyncio, json, datetime, pytz
+from datetime import datetime
 from collections import defaultdict
 from data import DatasourceFactory
 from strategy import Strategy
@@ -177,7 +178,7 @@ def night_filter(current_time):
 # 主程序(遍歷商品列表並提交訊號計算和下單任務)
 async def process_item(items, queue, process_pool, thread_pool, brokers, p_lock, broker_lock, order_status, strategy_lock, pending_task, log):
     # 獲取當前時間（考慮時區）
-    current_time = datetime.datetime.now(pytz.timezone("Asia/Taipei")).time()
+    current_time = datetime.now(pytz.timezone("Asia/Taipei")).time()
 
     # 過濾策略
     stock_codes = {}
