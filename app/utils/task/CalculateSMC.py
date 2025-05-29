@@ -203,6 +203,18 @@ class CalculateSMC(Task):
 
         return self.smc_indicators
     
+    def get_indicator_by_code(self, code):
+        # 獲取 SMC
+        indicator = self.smc_indicators[code]
+        return {
+            'ob_data': indicator.get('OB'),
+            'fvg_data': indicator.get('FVG'),
+            'liquidity': indicator.get('Liquidity'),
+            'bos': indicator.get('BOS'),
+            'choch': indicator.get('CHOCH'),
+            'swing': indicator.get('Swing')
+        }
+    
     def calculate_smc(self):
         for category, items in self.strategy.items(): # 遍歷 self.strategy 中的每個鍵值對
             for item in items: # 獲取 code 列表和 params
@@ -213,53 +225,35 @@ class CalculateSMC(Task):
                         self.log.warning(f"代號: {code} ({category}) 不存在於data_dict")
                         continue
                     
-                    # 主時間軸 Ex: 4HR -> (計算OB與FVG)
-                    data1 = convert_ohlcv(self.data_dict[code], params.get('k_time_long'))
+                    if code not in self.smc_indicators:
+                        self.log.warning(f"代號: {code} 不存在於smc_indicator")
+                        return 0
                     
-                    self.log.info(f'1分K轉換N分鐘的K棒資料: {data1.head(5)}')
+                    self.log.info(f"當前: {code} SMC交易類型為: {smc_type}")
 
-                    self.calculate_smc_indicators(data1, code, swing_length=params.get('swing_length_4h'), close_break=params.get('close_break'))
-                    self.determine_long_short(category, item, code, smc_type)
+                    if smc_type == 'ob_fvg':
+                        # 主時間軸 Ex: 4HR -> (計算OB與FVG)
+                        data1 = convert_ohlcv(self.data_dict[code], params.get('k_time_long'))
+                    
+                        self.log.info(f'1分K轉換N分鐘的K棒資料: {data1.head(5)}')
+
+                        self.calculate_smc_indicators(data1, code, swing_length=params.get('swing_length_4h'), close_break=params.get('close_break'))
+              
+                        smc = self.get_indicator_by_code(code)
+                        
+                        # 大時間級別決定交易方向(多或空)
+                        direction, ob = self.ob_fvg(code, smc['ob_data'], smc['fvg_data'])
+            
+                        if direction == 0: # 無交易方向, 將setting設定中monitor設定為false不監控
+                            return update_settings(category, item['code'], item['strategy'], {'monitor': False})
+
+                        # 有交易方向, 將交易方向, ob_top, ob_bottom, 監控, 進行相對應的參數設定
+                        return update_settings(category, item['code'], item['strategy'], {'direction': direction, 'monitor': True, 'ob_top': ob['Top'], 'ob_bottom': ob['Bottom']})
+
+                    else: # 未來如有更多SMC策略
+                        pass
 
         return
-
-    def determine_long_short(self, category, item, code, smc_type):
-        """
-        使用代號查詢計算的smc_indicator中相對應的結果, 並判斷交易方向(多, 空, 不交易)
-
-        Args:
-            code: 商品代號
-
-        Returns:
-            0, 1, -1: 做多, 做空, 無交易
-        """
-        if code not in self.smc_indicators:
-            self.log.warning(f"代號: {code} 不存在於smc_indicator")
-            return 0
-        
-        self.log.info(f"當前: {code} SMC交易類型為: {smc_type}")
-        
-        # 獲取 SMC        
-        indicator = self.smc_indicators[code]
-        ob_data = indicator.get('OB')
-        fvg_data = indicator.get('FVG')
-        liquidity = indicator.get('Liquidity')
-        bos = indicator.get('BOS')
-        choch = indicator.get('CHOCH')
-        swing = indicator.get('Swing')
-
-        if smc_type == 'ob_fvg': #SMC策略為OB+FVG
-            direction, ob = self.ob_fvg(code, ob_data, fvg_data)
-            
-            if direction == 0: # 無交易方向, 將setting設定中monitor設定為false不監控
-                return update_settings(category, item['code'], item['strategy'], {'monitor': False})
-            
-            # 有交易方向, 將交易方向, ob_top, ob_bottom, 監控, 進行相對應的參數設定
-            return update_settings(category, item['code'], item['strategy'], {'direction': direction, 'monitor': True, 'ob_top': ob['Top'], 'ob_bottom': ob['Bottom']})
-
-        else:
-            # 未來更多的不同SMC交易策略
-            pass
         
     def ob_fvg(self, code, ob_data, fvg_data):
         # 確保 OB 和 FVG 數據不為空
