@@ -4,35 +4,52 @@ from datetime import datetime, timedelta
 def convert_ohlcv(df, freq=60):
     # 建立 session_type 與 session_start
     def classify_session(ts):
-        time = ts.time()
-        if datetime.strptime("08:45", "%H:%M").time() <= time <= datetime.strptime("13:45", "%H:%M").time():
-            session_type = "day"
-            session_date = ts.date()
-            session_start = datetime.combine(session_date, datetime.strptime("08:45", "%H:%M").time())
-        elif time >= datetime.strptime("15:00", "%H:%M").time():
-            session_type = "night"
-            session_date = ts.date()
-            session_start = datetime.combine(session_date, datetime.strptime("15:00", "%H:%M").time())
-        elif time <= datetime.strptime("05:00", "%H:%M").time():
-            session_type = "night"
-            session_date = (ts - timedelta(days=1)).date()
-            session_start = datetime.combine(session_date, datetime.strptime("15:00", "%H:%M").time())
-        else:
-            return pd.Series(["other", pd.NaT])
-        return pd.Series([session_type, session_start])
+        try:
+            # 確保無時區
+            ts = ts.tz_localize(None) if ts.tzinfo else ts
+            time = ts.time()
+    
+            # 明確定義時間邊界
+            day_start = datetime.strptime("08:45", "%H:%M").time()
+            day_end = datetime.strptime("13:45", "%H:%M").time()
+            night_start = datetime.strptime("15:00", "%H:%M").time()
+            night_end = datetime.strptime("05:00", "%H:%M").time()
+
+            if day_start <= time <= day_end:
+                session_type = "day"
+                session_date = ts.date()
+                session_start = datetime.combine(session_date, day_start)
+            elif time >= night_start:
+                session_type = "night"
+                session_date = ts.date()
+                session_start = datetime.combine(session_date, night_start)
+            elif time <= night_end:
+                session_type = "night"
+                session_date = (ts - timedelta(days=1)).date()
+                session_start = datetime.combine(session_date, night_start)
+            else:
+                session_type = "other"
+                session_start = pd.NaT
+                print(f"Assigned 'other' to timestamp: {ts}")
+            
+            print(f"Result: session_type={session_type}, session_start={session_start}")
+            return pd.Series([session_type, session_start], index=["session_type", "session_start"])
+        except Exception as e:
+            print(f"Error in classify_session for {ts}: {e}")
+            return pd.Series([None, None], index=["session_type", "session_start"])
 
     # 修改1: 使用 .loc 明確賦值
     df.loc[:, ["session_type", "session_start"]] = df.index.to_series().apply(classify_session)
-    
+
     # 修改2: 過濾後強制創建副本
     df = df[df["session_type"].isin(["day", "night"])].copy()
-
+    
     # ✅ 將 index 向前推 1 分鐘
     df.index = df.index - pd.Timedelta(minutes=1)
 
     # 設定 K 棒時間長度
     window = timedelta(minutes=freq)
-
+    
     # 分段處理每個 session 的資料
     result = []
 
@@ -66,6 +83,7 @@ def convert_ohlcv(df, freq=60):
 
     # 建立新的 DataFrame
     agg_df = pd.DataFrame(result)
-    agg_df.set_index("ts", inplace=True)
+    if 'ts' in agg_df.columns:
+        agg_df.set_index('ts', inplace=True)
 
     return agg_df

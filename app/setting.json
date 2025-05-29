@@ -86,7 +86,7 @@
                     "stop_ratio2": 250,
                     "stop_ratio1": 50,
                     "window_trading_days": 3,
-                    "beta": 1.0033904398370688,
+                    "beta": 1.0,
                     "K_time": 30,
                     "position_type": "statarb",
                     "broker": "shioaji",
@@ -134,7 +134,10 @@
                     "broker": "shioaji",
                     "datasource": "shioaji",
                     "tz": "Asia/Taipei",
-                    "stop_time": ["13:45-14:55", "05:00-08:40"]
+                    "stop_time": [
+                        "13:45-14:55",
+                        "05:00-08:40"
+                    ]
                 }
             }
         ],

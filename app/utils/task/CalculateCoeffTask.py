@@ -62,7 +62,7 @@ class CalculateCoeffTask(Task):
 
                         # 獲取歷史 K 棒資料
                         for code in item['code']:
-                            if data_dict[code]:
+                            if code in data_dict:
                                 self.log.info(f"跳過: {code} ({category}), 已經獲取過")
                                 continue
                             
@@ -75,7 +75,7 @@ class CalculateCoeffTask(Task):
                                 self.log.error(f"未知的分類 key：{category}")
                                 continue
                             
-                            self.log.info(f"獲取k棒資料中:{code}")
+                            self.log.info(f"獲取k棒資料中:{code}, 開始日期: {begin}, 結束日期: {end}, 合約: {contract}")
                             
                             # 調用 API 獲取歷史 K 棒資料
                             kbars = api.kbars(
@@ -92,14 +92,10 @@ class CalculateCoeffTask(Task):
                             # 確保 ts 欄位為 datetime，並設置為索引
                             df['ts'] = pd.to_datetime(df['ts'])
                             # 將 OHLCV 欄位名稱改為小寫
-                            df = df.rename(columns={ 
-                                'Open': 'open',
-                                'High': 'high',
-                                'Low': 'low',
-                                'Close': 'close',
-                                'Volume': 'volume'
-                            })
-                            df.set_index('ts', inplace=True)
+                            df = df.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
+                            if 'ts' in df.columns:
+                                df.set_index('ts', inplace=True)
+                                
                             data_dict[code] = df
                             self.log.info(f"資料獲取完畢")
 

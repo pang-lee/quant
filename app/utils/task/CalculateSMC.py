@@ -18,7 +18,7 @@ class CalculateSMC(Task):
 
     async def execute(self, **kwargs) -> None:
         try:
-            self.log.info("\n\n運行calculate_smc task")
+            self.log.info("運行calculate_smc task")
             self._init_params()
             self.filter_settings()
 
@@ -29,7 +29,7 @@ class CalculateSMC(Task):
 
             self.refetch_data()
             self.calculate_smc()
-
+            self.log.info("計算完畢\n\n")
             return
         except Exception as e:
             self.log.error(f"calculate_smc, 出現錯誤: {str(e)}")
@@ -96,10 +96,10 @@ class CalculateSMC(Task):
             for item in items:
                 for code in item['code']: # 遍歷每個 code, 獲取歷史 K 棒資料
                     try:
-                        if self.data_dict[code]:
+                        if code in self.data_dict:
                             self.log.info(f"跳過: {code} ({category}), 已經獲取過")
                             continue
-
+                        
                         # 根據 category 選擇合約類型
                         if category == 'stock':
                             contract = api.Contracts.Stocks[code]
@@ -109,7 +109,7 @@ class CalculateSMC(Task):
                             self.log.error(f"未知的分類 key：{category}")
                             continue
 
-                        self.log.info(f"獲取k棒資料中:{code}")
+                        self.log.info(f"獲取k棒資料中:{code}, 開始日期: {begin}, 結束日期: {end}, 合約: {contract}")
 
                         # 調用 API 獲取歷史 K 棒資料
                         kbars = api.kbars(
@@ -120,20 +120,16 @@ class CalculateSMC(Task):
 
                         # 轉為 DataFrame
                         df = pd.DataFrame({**kbars})
-
                         self.log.info(f"k棒獲取完畢: {df.head(5)}")
 
                         # 確保 ts 欄位為 datetime，並設置為索引
                         df['ts'] = pd.to_datetime(df['ts'])
                         # 將 OHLCV 欄位名稱改為小寫
-                        df = df.rename(columns={ 
-                            'Open': 'open',
-                            'High': 'high',
-                            'Low': 'low',
-                            'Close': 'close',
-                            'Volume': 'volume'
-                        })
-                        df.set_index('ts', inplace=True)
+                        df = df.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
+
+                        if 'ts' in df.columns:
+                            df.set_index('ts', inplace=True)
+
                         self.data_dict[code] = df
                         self.log.info(f"資料獲取完畢")
 
@@ -212,7 +208,6 @@ class CalculateSMC(Task):
             for item in items: # 獲取 code 列表和 params
                 params = item.get('params', {})
                 smc_type = params.get('smc_type', "ob_fvg")
-
                 for code in item['code']:
                     if code not in self.data_dict: # 檢查 self.data_dict 中是否有該 code 的數據
                         self.log.warning(f"代號: {code} ({category}) 不存在於data_dict")
@@ -220,11 +215,14 @@ class CalculateSMC(Task):
                     
                     # 主時間軸 Ex: 4HR -> (計算OB與FVG)
                     data1 = convert_ohlcv(self.data_dict[code], params.get('k_time_long'))
-                    self.calculate_smc(data1, code, swing_length=params.get('swing_length_4h'), close_break=params.get('close_break'))
+                    
+                    self.log.info(f'1分K轉換N分鐘的K棒資料: {data1.head(5)}')
+
+                    self.calculate_smc_indicators(data1, code, swing_length=params.get('swing_length_4h'), close_break=params.get('close_break'))
                     self.determine_long_short(category, item, code, smc_type)
 
         return
-                       
+
     def determine_long_short(self, category, item, code, smc_type):
         """
         使用代號查詢計算的smc_indicator中相對應的結果, 並判斷交易方向(多, 空, 不交易)
