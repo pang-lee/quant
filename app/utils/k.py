@@ -2,6 +2,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 def convert_ohlcv(df, freq=60):
+    freq = int(freq) if isinstance(freq, str) else int(freq)
+    
     # 建立 session_type 與 session_start
     def classify_session(ts):
         try:

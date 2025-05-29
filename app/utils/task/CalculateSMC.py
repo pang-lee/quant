@@ -204,7 +204,11 @@ class CalculateSMC(Task):
         return self.smc_indicators
     
     def get_indicator_by_code(self, code):
-        # 獲取 SMC
+        # 獲取 SMC                    
+        if code not in self.smc_indicators:
+            self.log.warning(f"代號: {code} 不存在於smc_indicator")
+            return 0
+        
         indicator = self.smc_indicators[code]
         return {
             'ob_data': indicator.get('OB'),
@@ -224,11 +228,7 @@ class CalculateSMC(Task):
                     if code not in self.data_dict: # 檢查 self.data_dict 中是否有該 code 的數據
                         self.log.warning(f"代號: {code} ({category}) 不存在於data_dict")
                         continue
-                    
-                    if code not in self.smc_indicators:
-                        self.log.warning(f"代號: {code} 不存在於smc_indicator")
-                        return 0
-                    
+
                     self.log.info(f"當前: {code} SMC交易類型為: {smc_type}")
 
                     if smc_type == 'ob_fvg':
@@ -276,7 +276,7 @@ class CalculateSMC(Task):
             
         # 檢查是否找到有效的 OB 和 FVG
         if valid_ob is None or valid_fvg is None:
-            self.log.info(f"{code}: 無法找到有效的OB或FVG")
+            self.log.info(f"{code}: 無法找到有效的OB({valid_ob})或FVG({valid_fvg})")
             return (0, None)
 
         # 檢查 OB 和 FVG 的方向是否一致

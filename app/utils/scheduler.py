@@ -48,12 +48,14 @@ class TaskScheduler:
             },         
             {
                 "name": "calculate_coeff",
-                "trigger": CronTrigger(hour=14, minute=15),
+                # "trigger": CronTrigger(hour=14, minute=15),
+                "trigger": CronTrigger(hour=14, minute=25),
                 "kwargs": {"lock": self.process_lock}
             },
             {
                 "name": "calculate_smc",
-                "trigger": CronTrigger(hour=14, minute=20),
+                # "trigger": CronTrigger(hour=14, minute=20),
+                "trigger": CronTrigger(hour=14, minute=27),
                 "kwargs": {"redo": False}
             },
             {
