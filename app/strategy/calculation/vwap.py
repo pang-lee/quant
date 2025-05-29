@@ -21,9 +21,7 @@ class Vwap(AbstractCalculation):
             status = self.return_ob()
             self.log.info(f"當前時間段: {self.timeframe}, 要判斷是否價格有回踩OB, 判斷結果: {status}")
         
-        if not status: # 當前5分或15分價格沒有回踩OB
-            if self.timeframe == '4hr':
-                self.log.info(f"當前時間段: {self.timeframe}, 不用檢查OB, 等待下一次判斷\n\n")
+        if self.timeframe is not '4hr' and not status: # 當前5分或15分價格沒有回踩OB
             self.log.info(f"當前時間段: {self.timeframe}, 沒有回踩價格, 等待下一次判斷\n\n")
             return (False, 0)
         
