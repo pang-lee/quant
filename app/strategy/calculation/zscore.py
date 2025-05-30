@@ -41,9 +41,9 @@ class Zscore(AbstractCalculation):
     def generate_signal(self, z_score):
         """根據 z-score 生成交易信號"""
         self.log.info(f"當前z-score: {z_score}, 準備生成交易訊號\n")
-        if z_score > self.params['threshold']: # Z-score > threshold，空 A 多 B
+        if z_score > self.params['threshold']: # Z-score > threshold，多 A 空 B
             return -1 
-        elif z_score < -self.params['threshold']: # Z-score < -threshold，多 A 空 B
+        elif z_score < -self.params['threshold']: # Z-score < -threshold，空 A 多 B
             return 1
         elif abs(z_score) < 0.1: # Z-score 接近 0 時平倉
             return 2

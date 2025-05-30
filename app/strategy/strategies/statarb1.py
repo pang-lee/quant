@@ -312,9 +312,9 @@ class Statarb1(AbstractStrategy):
         
         capital1, capital2 = int(self.current_position1.get('position', {}).get('capital', self.params['capital1'])), int(self.current_position2.get('position', {}).get('capital', self.params['capital2']))
         
-        if action == 1: # 多A空B邏輯
-            self.log.info("當前z-score統計後: 多A空B")
-            self.publish_order(1, **{
+        if action == 1: # 空 A 多 B邏輯
+            self.log.info("當前z-score統計後: 空 A 多 B")
+            self.publish_order(-1, **{
                 'code': code1,
                 'ts': ts1,
                 'current_price': price1,
@@ -326,7 +326,7 @@ class Statarb1(AbstractStrategy):
                 'capital': capital1
             })
             
-            self.publish_order(-1, **{
+            self.publish_order(1, **{
                 'code': code2,
                 'ts': ts2,
                 'current_price': price2,
@@ -340,9 +340,9 @@ class Statarb1(AbstractStrategy):
 
             return self.order
 
-        elif action == -1: # 空A多B邏輯
-            self.log.info("當前z-score統計後: 空A多B")
-            self.publish_order(-1, **{
+        elif action == -1: # 多 A 空 B邏輯
+            self.log.info("當前z-score統計後: 多 A 空 B")
+            self.publish_order(1, **{
                 'code': code1,
                 'ts': ts1,
                 'current_price': price1,
@@ -354,7 +354,7 @@ class Statarb1(AbstractStrategy):
                 'capital': capital1
             })
             
-            self.publish_order(1, **{
+            self.publish_order(-1, **{
                 'code': code2,
                 'ts': ts2,
                 'current_price': price2,
