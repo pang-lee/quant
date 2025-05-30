@@ -20,7 +20,7 @@ class Zscore(AbstractCalculation):
             return 0
         
         # Compute residuals
-        residuals = self.data['A'] - self.params['beta'] * self.data['B']
+        residuals = self.data['B'] - self.params['beta'] * self.data['A']
         self.log.info(f"Residual 計算完畢,\n 當前數值: {residuals}\n")
         return residuals
 

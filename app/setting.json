@@ -101,6 +101,49 @@
             },
             {
                 "code": [
+                    "FXFR1",
+                    "ZFFR1"
+                ],
+                "strategy": "statarb2",
+                "calculation": [
+                    "zscore"
+                ],
+                "params": {
+                    "cross_day": false,
+                    "rsi": 12,
+                    "k_lookback": 65,
+                    "z_window": 30,
+                    "threshold": 2,
+                    "commission2": 15,
+                    "tax2": 2e-05,
+                    "share_per_trade2": 1,
+                    "tick_size2": 50,
+                    "commission1": 15,
+                    "tax1": 2e-05,
+                    "share_per_trade1": 1,
+                    "tick_size1": 200,
+                    "capital1": 120000,
+                    "capital2": 30000,
+                    "min_margin2": 22750,
+                    "min_margin1": 91000,
+                    "stop_ratio2": 150,
+                    "stop_ratio1": 50,
+                    "window_trading_days": 3,
+                    "beta": 1.0,
+                    "K_time": 5,
+                    "position_type": "statarb",
+                    "broker": "shioaji",
+                    "datasource": "shioaji",
+                    "tz": "Asia/Taipei",
+                    "night": false,
+                    "stop_time": [
+                        "13:45-14:55",
+                        "05:00-08:40"
+                    ]
+                }
+            },
+            {
+                "code": [
                     "TMFR1"
                 ],
                 "strategy": "tmfrsmc",
