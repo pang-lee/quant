@@ -21,10 +21,53 @@ class CalculateCoeffTask(Task):
     async def execute(self, **kwargs) -> None:
         try:
             self.log.info(f"運行calculate_coeff task")
-            await self.calculate_coeff(kwargs.get('lock'))
+            self._init_params(**kwargs)
+            self.filter_settings()
+
+            if kwargs.get('redo') is True:
+                self.filter_strategy()
+            else:
+                self.filter_crossday()
+
+            await self.calculate_coeff()
         except Exception as e:
             self.log.error(f"calculate_coeff運行錯誤: {str(e)}")
             raise
+
+    def _init_params(self, **kwargs):
+        self.strategy = {}
+        self.lock = kwargs.get('lock')
+        return
+    
+    def filter_settings(self):
+        with self.lock: # 調用 open_json_file 獲取 JSON 數據，並過濾掉值為空的鍵值對
+            json_data = {k: v for k, v in open_json_file()['items'].items() if v}
+
+        # 遍歷 json_data 中的所有鍵值對
+        for key, items in json_data.items():
+            # 過濾 strategy 字串以 'smc' 結尾的項目
+            filtered_items = [item for item in items if item.get('strategy', '').startswith("statarb")]
+            if filtered_items:  # 只有非空列表才添加到 self.strategy
+                self.strategy[key] = filtered_items
+
+        return self.strategy
+
+    def filter_crossday(self):
+        # 在 self.strategy 上進一步過濾 cross_day 為 False 的項目
+        for key in list(self.strategy.keys()):  # 使用 list 避免運行時修改字典
+            self.strategy[key] = [
+                item for item in self.strategy[key]
+                if item.get('params', {}).get('cross_day', False) is False
+            ]
+            if not self.strategy[key]:  # 如果過濾後列表為空，移除該鍵
+                del self.strategy[key]
+        
+        self.log.info(f"將要過濾cross_day為False的statarb, 過濾出: {len(self.strategy)} 個\n策略: {self.strategy}")
+        return self.strategy
+
+    def filter_strategy(self):
+        self.log.info(f"將要重新計算全部策略的statarb: {len(self.strategy)} 個\n 策略: {self.strategy}")
+        return self.strategy
 
     async def calculate_coeff(self, lock):
         try:
@@ -45,13 +88,14 @@ class CalculateCoeffTask(Task):
             with lock:
                 setting = open_json_file()
 
-            for category, items in setting.get("items", {}).items():
+            for category, items in self.strategy.items():
                 for item in items:
                     dt_dict = {}
                     data_dict = {}
-
+                    statarb_type = item.get('params', {}).get('statarb_type', "beta")
+                    
                     # 協整beta策略
-                    if "strategy" in item and item["strategy"].startswith("statarb"):
+                    if statarb_type == 'beta':
                         strategy = item["strategy"]
                         base_path = f"data/coeff/{strategy}" # 定義歷史數據路徑
                         window_trading_days = item["params"]["window_trading_days"]
@@ -118,7 +162,7 @@ class CalculateCoeffTask(Task):
                         if num_codes == 2: # 只有兩個標的協整beta計算
                             beta, _ = self.analyze_two_cointegration(combined_df)
 
-                        with lock:
+                        with self.lock:
                             update_settings(category, item['code'], item['strategy'], {'beta': beta})
 
             # 登出 API

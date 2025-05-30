@@ -29,12 +29,12 @@ class TaskScheduler:
             {
                 "name": "calculate_coeff",
                 "trigger": CronTrigger(hour=6, minute=0),
-                "kwargs": {"lock": self.process_lock}
+                "kwargs": {"lock": self.process_lock, "redo": True}
             },
             {
                 "name": "calculate_smc",
                 "trigger": CronTrigger(hour=6, minute=10),
-                "kwargs": {"redo": True}
+                "kwargs": {"lock": self.process_lock, "redo": True}
             },
             {
                 "name": "clear_redis",
@@ -49,12 +49,12 @@ class TaskScheduler:
             {
                 "name": "calculate_coeff",
                 "trigger": CronTrigger(hour=14, minute=15),
-                "kwargs": {"lock": self.process_lock}
+                "kwargs": {"lock": self.process_lock, "redo": False}
             },
             {
                 "name": "calculate_smc",
                 "trigger": CronTrigger(hour=14, minute=20),
-                "kwargs": {"redo": False}
+                "kwargs": {"lock": self.process_lock, "redo": False}
             },
             {
                 "name": "clear_redis",

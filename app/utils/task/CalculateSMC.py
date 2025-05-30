@@ -19,7 +19,7 @@ class CalculateSMC(Task):
     async def execute(self, **kwargs) -> None:
         try:
             self.log.info("運行calculate_smc task")
-            self._init_params()
+            self._init_params(**kwargs)
             self.filter_settings()
 
             if kwargs.get('redo') is True:
@@ -35,15 +35,16 @@ class CalculateSMC(Task):
             self.log.error(f"calculate_smc, 出現錯誤: {str(e)}")
             raise
 
-    def _init_params(self):
+    def _init_params(self, **kwargs):
         self.strategy = {}
         self.smc_indicators = {}
         self.data_dict = {}
+        self.lock = kwargs.get('lock')
         return
 
     def filter_settings(self):
-        # 調用 open_json_file 獲取 JSON 數據，並過濾掉值為空的鍵值對
-        json_data = {k: v for k, v in open_json_file()['items'].items() if v}
+        with self.lock: # 調用 open_json_file 獲取 JSON 數據，並過濾掉值為空的鍵值對
+            json_data = {k: v for k, v in open_json_file()['items'].items() if v}
 
         # 遍歷 json_data 中的所有鍵值對
         for key, items in json_data.items():
@@ -55,8 +56,6 @@ class CalculateSMC(Task):
         return self.strategy
 
     def filter_monitor(self):
-        self.log.info(f"將要重新計算monitor監控為False(有進場或止損出場)的SMC, 過濾出: {len(self.strategy)} 個\n策略: {self.strategy}")
-        
         # 在 self.strategy 上進一步過濾 monitor 為 False 的項目
         for key in list(self.strategy.keys()):  # 使用 list 避免運行時修改字典
             self.strategy[key] = [
@@ -66,10 +65,11 @@ class CalculateSMC(Task):
             if not self.strategy[key]:  # 如果過濾後列表為空，移除該鍵
                 del self.strategy[key]
         
+        self.log.info(f"將要重新計算monitor監控為False(有進場或止損出場)的SMC, 過濾出: {len(self.strategy)} 個\n策略: {self.strategy}")
         return self.strategy
 
     def filter_strategy(self):
-        self.log.info(f"將要重新計算全部策略的SMC, 過濾出: {len(self.strategy)} 個\n 策略: {self.strategy}")
+        self.log.info(f"將要重新計算全部策略的SMC: {len(self.strategy)} 個\n 策略: {self.strategy}")
         return self.strategy
 
     def refetch_data(self):
@@ -245,11 +245,15 @@ class CalculateSMC(Task):
                         direction, ob = self.ob_fvg(code, smc['ob_data'], smc['fvg_data'])
             
                         if direction == 0: # 無交易方向, 將setting設定中monitor設定為false不監控
-                            return update_settings(category, item['code'], item['strategy'], {'monitor': False})
-
+                            with self.lock:
+                                update_settings(category, item['code'], item['strategy'], {'monitor': False})
+                            return
+                        
                         # 有交易方向, 將交易方向, ob_top, ob_bottom, 監控, 進行相對應的參數設定
-                        return update_settings(category, item['code'], item['strategy'], {'direction': direction, 'monitor': True, 'ob_top': ob['Top'], 'ob_bottom': ob['Bottom']})
-
+                        with self.lock: 
+                            update_settings(category, item['code'], item['strategy'], {'direction': direction, 'monitor': True, 'ob_top': ob['Top'], 'ob_bottom': ob['Bottom']})
+                        
+                        return
                     else: # 未來如有更多SMC策略
                         pass
 

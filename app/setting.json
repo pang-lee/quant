@@ -68,6 +68,7 @@
                     "zscore"
                 ],
                 "params": {
+                    "statarb_type": "beta",
                     "cross_day": true,
                     "z_window": 10,
                     "threshold": 2,
@@ -109,6 +110,7 @@
                     "zscore"
                 ],
                 "params": {
+                    "statarb_type": "beta",
                     "cross_day": false,
                     "rsi": 12,
                     "k_lookback": 65,
