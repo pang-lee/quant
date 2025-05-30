@@ -49,12 +49,12 @@ class TaskScheduler:
             {
                 "name": "calculate_coeff",
                 "trigger": CronTrigger(hour=14, minute=15),
-                "kwargs": {"lock": self.process_lock, "redo": False}
+                "kwargs": {"lock": self.process_lock, "redo": False} # 過濾掉night為false(沒有業盤交易)
             },
             {
                 "name": "calculate_smc",
                 "trigger": CronTrigger(hour=14, minute=20),
-                "kwargs": {"lock": self.process_lock, "redo": False}
+                "kwargs": {"lock": self.process_lock, "redo": False} # 找出monitor為false(有止損或還沒計算SMC)
             },
             {
                 "name": "clear_redis",

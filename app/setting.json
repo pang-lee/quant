@@ -112,7 +112,9 @@
                 "params": {
                     "statarb_type": "beta",
                     "cross_day": false,
-                    "rsi": 12,
+                    "indicator": {
+                        "rsi": 12
+                    },
                     "k_lookback": 65,
                     "z_window": 30,
                     "threshold": 2,

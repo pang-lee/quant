@@ -1,4 +1,5 @@
 from utils.task.Task import Task
+from utils.technical_indicator import rsi
 from utils.log import get_module_logger
 from utils.k import convert_ohlcv
 import pandas as pd
@@ -27,7 +28,7 @@ class CalculateCoeffTask(Task):
             if kwargs.get('redo') is True:
                 self.filter_strategy()
             else:
-                self.filter_crossday()
+                self.filter_night()
 
             await self.calculate_coeff()
         except Exception as e:
@@ -36,6 +37,9 @@ class CalculateCoeffTask(Task):
 
     def _init_params(self, **kwargs):
         self.strategy = {}
+        self.indicator = {
+            'rsi': rsi
+        }
         self.lock = kwargs.get('lock')
         return
     
@@ -52,17 +56,17 @@ class CalculateCoeffTask(Task):
 
         return self.strategy
 
-    def filter_crossday(self):
+    def filter_night(self):
         # 在 self.strategy 上進一步過濾 cross_day 為 False 的項目
         for key in list(self.strategy.keys()):  # 使用 list 避免運行時修改字典
             self.strategy[key] = [
                 item for item in self.strategy[key]
-                if item.get('params', {}).get('cross_day', False) is False
+                if item.get('params', {}).get('night', False) is False
             ]
             if not self.strategy[key]:  # 如果過濾後列表為空，移除該鍵
                 del self.strategy[key]
         
-        self.log.info(f"將要過濾cross_day為False的statarb, 過濾出: {len(self.strategy)} 個\n策略: {self.strategy}")
+        self.log.info(f"將要過濾night為False的statarb, 過濾出: {len(self.strategy)} 個\n策略: {self.strategy}")
         return self.strategy
 
     def filter_strategy(self):
@@ -139,7 +143,7 @@ class CalculateCoeffTask(Task):
                             df = df.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
                             if 'ts' in df.columns:
                                 df.set_index('ts', inplace=True)
-                                
+
                             data_dict[code] = df
                             self.log.info(f"資料獲取完畢")
 
@@ -152,8 +156,19 @@ class CalculateCoeffTask(Task):
                         for code in item['code']:
                             # 篩選窗口
                             window_df, _ = self.filter_and_check_window(data_dict[code], window_trading_days, code, f"{base_path}/{code}")  # 此處已確保數據足夠
-                            dt_dict[code] = convert_ohlcv(window_df, item['params']['K_time'])['close']
-                        
+
+                            if item['params'].get('indicator'):  # 判斷params中計算是否是使用技術指標, 多個技術指標順序對應者商品A, B的coint計算 Ex: indicator: {rsi, macd} => {A: rsi(時間序列), B: macd(時間序列)}
+                                indicator_dict = item['params']['indicator']
+                                for indicator_type, indicator_param in indicator_dict.items():
+                                    k_time = convert_ohlcv(window_df, item['params']['K_time'])
+                                    indicator_func = self.indicator.get(indicator_type)
+                                    if indicator_func:
+                                        dt_dict[code] = indicator_func(k_time['close'], indicator_param)
+                                    else:
+                                        raise ValueError(f"Indicator function for '{indicator_type}' not found in self.indicator")
+                            else:
+                                dt_dict[code] = convert_ohlcv(window_df, item['params']['K_time'])['close']
+
                         # 依照ABC生成時間序列
                         column_names = [chr(65 + i) for i in range(len(dt_dict))]
                         combined_df = pd.DataFrame(dict(zip(column_names, dt_dict.values()))).dropna()
