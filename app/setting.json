@@ -70,7 +70,7 @@
                 "params": {
                     "statarb_type": "beta",
                     "cross_day": true,
-                    "z_window": 10,
+                    "z_window": 8,
                     "threshold": 2,
                     "commission2": 15,
                     "tax2": 2e-05,
