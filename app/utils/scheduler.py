@@ -37,15 +37,15 @@ class TaskScheduler:
                 "kwargs": {"lock": self.process_lock, "redo": True}
             },
             {
-                "name": "clear_redis",
+                "name": "reinit_shioaji",
                 "trigger": CronTrigger(hour=7, minute=0),
-                "kwargs": {"lock": self.process_lock}
+                "kwargs": {"broker": self.brokers['shioaji'], "datasource": self.datasources['ShioajiDataSource']}
             },
             {
-                "name": "reinit_shioaji",
-                "trigger": CronTrigger(hour=8, minute=0),
-                "kwargs": {"broker": self.brokers['shioaji'], "datasource": self.datasources['ShioajiDataSource']}
-            },         
+                "name": "clear_redis",
+                "trigger": CronTrigger(hour=7, minute=30),
+                "kwargs": {"lock": self.process_lock}
+            },
             {
                 "name": "calculate_coeff",
                 "trigger": CronTrigger(hour=14, minute=15),
@@ -57,14 +57,14 @@ class TaskScheduler:
                 "kwargs": {"lock": self.process_lock, "redo": False} # 找出monitor為false(有止損或還沒計算SMC)
             },
             {
+                "name": "reinit_shioaji",
+                "trigger": CronTrigger(hour=14, minute=25),
+                "kwargs": {"broker": self.brokers['shioaji'], "datasource": self.datasources['ShioajiDataSource']}
+            },
+            {
                 "name": "clear_redis",
                 "trigger": CronTrigger(hour=14, minute=30),
                 "kwargs": {"lock": self.process_lock}
-            },
-            {
-                "name": "reinit_shioaji",
-                "trigger": CronTrigger(hour=14, minute=45),
-                "kwargs": {"broker": self.brokers['shioaji'], "datasource": self.datasources['ShioajiDataSource']}
             }
         ]
 
