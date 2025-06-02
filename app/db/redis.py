@@ -28,14 +28,29 @@ def get_redis_connection():
         
     return _redis_instance  # 返回已存在的連線實例
 
+# 判斷是否需要 night 過濾（下午 2:00 後）
+def night_filter(current_time):
+    afternoon_2pm = datetime.strptime("14:00", "%H:%M").time()
+    apply_filter = current_time > afternoon_2pm
+    return apply_filter
+
 def set_redis_consumer(item, redis_cli=None):
     if redis_cli is None:
         redis_cli = get_redis_connection()
     
     log.info("即將創建redis的consumer_gruop去讀取redis_stream")
     
+    # 獲取當前時間（考慮時區）
+    current_time = datetime.now(pytz.timezone("Asia/Taipei")).time()
+
     for symbol in item.keys():
         for sub_item in item[symbol]:
+            
+            # 應用 night 過濾（僅在下午 2:00 後）
+            if night_filter(current_time) and not sub_item.get("params", {}).get("night", False):
+                log.info(f"跳過 strategy: {sub_item['strategy']}，night 未設定或為 False")
+                continue
+            
             for code in sub_item['code']:
                 log.info(f"當前創建的stream為: {code}")
                 data_redis_key = f"{sub_item['params']['broker']}_{symbol}_{code}_stream"
