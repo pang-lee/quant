@@ -30,7 +30,7 @@ class CalculateCoeffTask(Task):
             else:
                 self.filter_night()
 
-            await self.calculate_coeff()
+            await self.calculate_coeff(self.lock)
         except Exception as e:
             self.log.error(f"calculate_coeff運行錯誤: {str(e)}")
             raise
