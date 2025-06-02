@@ -206,12 +206,12 @@ async def process_item(items, queue, process_pool, thread_pool, brokers, p_lock,
                     continue
 
             # 應用 night 過濾（僅在下午 2:00 後）
-            if night_filter and not item.get("params", {}).get("night", False):
+            if night_filter(current_time) and not item.get("params", {}).get("night", False):
                 log.info(f"跳過 strategy: {strategy}，night 未設定或為 False")
                 continue
 
             filtered_item_list.append(item)
-        
+
         if filtered_item_list:
             stock_codes[symbol] = filtered_item_list
 
@@ -219,7 +219,7 @@ async def process_item(items, queue, process_pool, thread_pool, brokers, p_lock,
     if not stock_codes:
         log.info("無可執行的策略，執行下一次 process_item\n\n")
         return
-    
+
     loop = asyncio.get_event_loop()
     
     # 提交訊號計算任務到進程池
