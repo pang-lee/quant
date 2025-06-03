@@ -114,7 +114,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
         
         # 計算 end 和 begin 日期
         end = datetime.now(tz=pytz.timezone('Asia/Taipei')).strftime('%Y-%m-%d')  # 當前日期，例如 '2025-04-15'
-        begin = (datetime.now(tz=pytz.timezone('Asia/Taipei')) - timedelta(days=3)).strftime('%Y-%m-%d')  # 當前日期減 3 天，例如 '2025-04-12'
+        begin = (datetime.now(tz=pytz.timezone('Asia/Taipei')) - timedelta(days=14)).strftime('%Y-%m-%d')  # 當前日期減 14 天
         
         for item in refetch_list:
             log.info(f'剩餘可用API: {api.usage()}')
@@ -147,7 +147,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
                 # 轉為 DataFrame
                 df = pd.DataFrame({**kbars})
                 
-                log.info(f"k棒獲取完畢: {df.head(5)}")
+                log.info(f"k棒獲取完畢: {df.tail(5)}")
                 
                 # 確保 ts 欄位為 datetime，並設置為索引
                 df['ts'] = pd.to_datetime(df['ts'])

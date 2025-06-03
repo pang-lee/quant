@@ -106,7 +106,7 @@ class CalculateCoeffTask(Task):
 
                         # 計算 end 和 begin 日期
                         end = datetime.now(tz=pytz.timezone('Asia/Taipei')).strftime('%Y-%m-%d')  # 當前日期，例如 '2025-04-15'
-                        begin = (datetime.now(tz=pytz.timezone('Asia/Taipei')) - timedelta(days=5)).strftime('%Y-%m-%d')  # 當前日期減 3 天，例如 '2025-04-12'
+                        begin = (datetime.now(tz=pytz.timezone('Asia/Taipei')) - timedelta(days=14)).strftime('%Y-%m-%d')  # 當前日期減 14 天
 
                         # 獲取歷史 K 棒資料
                         for code in item['code']:
@@ -135,7 +135,7 @@ class CalculateCoeffTask(Task):
                             # 轉為 DataFrame
                             df = pd.DataFrame({**kbars})
                             
-                            self.log.info(f"k棒獲取完畢: {df.head(5)}")
+                            self.log.info(f"k棒獲取完畢: {df.tail(5)}")
 
                             # 確保 ts 欄位為 datetime，並設置為索引
                             df['ts'] = pd.to_datetime(df['ts'])
@@ -156,8 +156,13 @@ class CalculateCoeffTask(Task):
                         for code in item['code']:
                             # 篩選窗口
                             window_df, _ = self.filter_and_check_window(data_dict[code], window_trading_days, code, f"{base_path}/{code}")  # 此處已確保數據足夠
-
-                            if item['params'].get('indicator'):  # 判斷params中計算是否是使用技術指標, 多個技術指標順序對應者商品A, B的coint計算 Ex: indicator: {rsi, macd} => {A: rsi(時間序列), B: macd(時間序列)}
+                            
+                            if window_df is None:
+                                self.log.error(f"篩選窗口失敗: {code}")
+                                continue
+                            
+                            # 判斷params中計算是否是使用技術指標, 多個技術指標「順序」對應 code「順序, Ex: 商品A, B的coint計算 indicator: {rsi, macd} => {A: rsi(時間序列), B: macd(時間序列)}
+                            if item['params'].get('indicator'):
                                 indicator_dict = item['params']['indicator']
                                 for indicator_type, indicator_param in indicator_dict.items():
                                     k_time = convert_ohlcv(window_df, item['params']['K_time'])
@@ -165,7 +170,7 @@ class CalculateCoeffTask(Task):
                                     if indicator_func:
                                         dt_dict[code] = indicator_func(k_time['close'], indicator_param)
                                     else:
-                                        raise ValueError(f"Indicator function for '{indicator_type}' not found in self.indicator")
+                                        raise ValueError(f"技術指標 '{indicator_type}' 在 self.indicator 中未找到")
                             else:
                                 dt_dict[code] = convert_ohlcv(window_df, item['params']['K_time'])['close']
 
@@ -253,7 +258,7 @@ class CalculateCoeffTask(Task):
                 # 確保 base_path 存在，若不存在則創建
                 if not os.path.exists(csv_path):
                     os.makedirs(csv_path)
-                self.log.info(f"{code}資料的交易日數量不足, 僅有{len(unique_dates)}天, 但是需要 {window_trading_days}天. 將此pandas存入 {csv_path}.")
+                self.log.info(f"{code}資料的交易日數量不足, 僅有{len(unique_dates)}天, 但是需要 {window_trading_days}天.")
             return None, False  # 數據不足
 
         # 從最新的日期開始，選取前 window_trading_days 個交易日
@@ -266,8 +271,7 @@ class CalculateCoeffTask(Task):
             if code and csv_path:
                 if not os.path.exists(csv_path):
                     os.makedirs(csv_path)
-                self.log.info(f"{code}篩選後的交易日數量不足, 僅有{unique_trading_days}天, 但是需要 {window_trading_days}天. 將此pandas存入 {csv_path}.")
-                df.to_csv(f"{csv_path}/{code}.csv", index=True)
+                self.log.info(f"{code}篩選後的交易日數量不足, 僅有{unique_trading_days}天, 但是需要 {window_trading_days}天.")
             return None, False
 
         # 提取篩選後的開始和結束日期
