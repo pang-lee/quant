@@ -58,7 +58,7 @@ class ShioajiDataSource(AbstractDatasource):
             self.log.info(f"當前時間為日盤時段, 當前要訂閱的商品列表: {filtered_product}")
 
         for item in filtered_product:
-            symbol, code = item
+            symbol, code, _ = item
             self.subscribe(symbol=symbol, code=code)
             
         try:
