@@ -84,6 +84,6 @@ def convert_ohlcv(df, freq=60):
     # 建立新的 DataFrame
     agg_df = pd.DataFrame(result)
     if 'ts' in agg_df.columns:
-        agg_df.set_index('ts', inplace=True)
+        agg_df.set_index('ts', inplace=True, drop=True)
 
     return agg_df
