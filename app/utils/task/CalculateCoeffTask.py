@@ -1,5 +1,5 @@
 from utils.task.Task import Task
-from utils.technical_indicator import rsi
+from utils.technical_indicator.rsi import calculate_rsi
 from utils.log import get_module_logger
 from utils.k import convert_ohlcv
 import pandas as pd
@@ -38,7 +38,7 @@ class CalculateCoeffTask(Task):
     def _init_params(self, **kwargs):
         self.strategy = {}
         self.indicator = {
-            'rsi': rsi
+            'rsi': calculate_rsi
         }
         self.lock = kwargs.get('lock')
         return
@@ -61,7 +61,7 @@ class CalculateCoeffTask(Task):
         for key in list(self.strategy.keys()):  # 使用 list 避免運行時修改字典
             self.strategy[key] = [
                 item for item in self.strategy[key]
-                if item.get('params', {}).get('night', False) is False
+                if item.get('params', {}).get('night', False) is True
             ]
             if not self.strategy[key]:  # 如果過濾後列表為空，移除該鍵
                 del self.strategy[key]
@@ -142,7 +142,7 @@ class CalculateCoeffTask(Task):
                             # 將 OHLCV 欄位名稱改為小寫
                             df = df.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
                             if 'ts' in df.columns:
-                                df.set_index('ts', inplace=True)
+                                df.set_index('ts', inplace=True, drop=False)
 
                             data_dict[code] = df
                             self.log.info(f"資料獲取完畢")
@@ -160,8 +160,8 @@ class CalculateCoeffTask(Task):
                             if window_df is None:
                                 self.log.error(f"篩選窗口失敗: {code}")
                                 continue
-                            
-                            # 判斷params中計算是否是使用技術指標, 多個技術指標「順序」對應 code「順序, Ex: 商品A, B的coint計算 indicator: {rsi, macd} => {A: rsi(時間序列), B: macd(時間序列)}
+
+                            # 判斷params中計算是否是使用技術指標, params中的多個技術指標「順序」對應 code「順序」, Ex: 商品A, B的coint計算 params.indicator: {rsi, macd} => {A: rsi(時間序列), B: macd(時間序列)}
                             if item['params'].get('indicator'):
                                 indicator_dict = item['params']['indicator']
                                 for indicator_type, indicator_param in indicator_dict.items():
@@ -171,7 +171,8 @@ class CalculateCoeffTask(Task):
                                         dt_dict[code] = indicator_func(k_time['close'], indicator_param)
                                     else:
                                         raise ValueError(f"技術指標 '{indicator_type}' 在 self.indicator 中未找到")
-                            else:
+                                
+                            else: # 沒有使用技術指標, 默認使用收盤價
                                 dt_dict[code] = convert_ohlcv(window_df, item['params']['K_time'])['close']
 
                         # 依照ABC生成時間序列

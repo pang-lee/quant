@@ -26,7 +26,7 @@ class Statarb1(AbstractStrategy):
             k_amount = self.lrange_of_redis(redis_k_key, -self.params['z_window'], -1)
 
             if len(k_amount) < self.params['z_window']:
-                return 0
+                continue
 
             # 只取最近 long_window 根 K 棒
             recent_k_amount = k_amount[-self.params['z_window']:]
@@ -39,7 +39,7 @@ class Statarb1(AbstractStrategy):
             if last_k_ts is None:
                 super().save_to_redis(f"last_k_ts_{code}_{self.item['strategy']}", {'ts': latest_k_ts.strftime("%Y-%m-%d %H:%M:%S")}, type='set')  # 存入 Redis
                 ts_comparison.append(False)  # 因為是初次儲存，不視為更新
-                return
+                continue
 
             # 記錄比較結果（時間已更新）
             ts_comparison.append(True)

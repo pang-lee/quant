@@ -128,7 +128,7 @@ class CalculateSMC(Task):
                         df = df.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
 
                         if 'ts' in df.columns:
-                            df.set_index('ts', inplace=True)
+                            df.set_index('ts', inplace=True, drop=False)
 
                         self.data_dict[code] = df
                         self.log.info(f"資料獲取完畢")
