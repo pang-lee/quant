@@ -43,12 +43,17 @@ class DatasourceFactory:
         # 提取有效的 datasource 並生成數據源
         for key, items in filtered_symbols.items():
             for item in items:
-                datasource_type = item['params'].get('datasource')
+                datasource_type = item['params'].get('datasource', None)
                 symbol_codes = item.get('code', [])
+                night = item['params'].get('night', False)
+
+                if not datasource_type:
+                    raise ValueError(f"{item}: 缺少 datasource 參數")
+
                 # 為每個 code 建立數據源
                 for symbol_code in symbol_codes:
                     if datasource_type == "shioaji":
-                        shioaji_subscription.append((key, symbol_code))
+                        shioaji_subscription.append((key, symbol_code, night))
 
                     else:# 其他數據源處理邏輯, 這裡需要根據實際需求實現其他數據源的處理邏輯
                         pass

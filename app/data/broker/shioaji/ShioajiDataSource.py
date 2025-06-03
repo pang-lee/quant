@@ -1,4 +1,5 @@
-import json
+import json, pytz
+from datetime import datetime
 from data.broker.abc.AbstractDatasource import AbstractDatasource
 from shioaji import TickFOPv1, TickSTKv1, Exchange, BidAskFOPv1, BidAskSTKv1
 from decimal import Decimal
@@ -12,6 +13,7 @@ class ShioajiDataSource(AbstractDatasource):
         super().__init__()
         self.api = brokers['shioaji'].api
         self.log = get_module_logger('data/shioaji_data')
+        self.subscribe_product = None
         self._init_callbacks()
 
     def _init_callbacks(self):
@@ -32,12 +34,30 @@ class ShioajiDataSource(AbstractDatasource):
             self.log.info("ShioajiDataSource - 重新設定shioaji連線")
             self.api = client.api
             self._init_callbacks()  # 重新設定 callbacks
+            self.fetch_market_data(self.subscribe_product)
             self.log.info("ShioajiDataSource - 新shioaji連線完成")
         except Exception as e:
             self.log.error(f"ShioajiDataSource - 重新設定Shioaji失敗: {e}")
 
+    def night_filter(self):
+        # 獲取當前時間（考慮時區）
+        current_time = datetime.now(pytz.timezone("Asia/Taipei")).time()
+        afternoon_2pm = datetime.strptime("14:00", "%H:%M").time()
+        apply_filter = current_time > afternoon_2pm
+        return apply_filter
+
     def fetch_market_data(self, product):
-        for item in product:
+        if not self.subscribe_product:
+            self.subscribe_product = product
+
+        if self.night_filter(): # 如果當前時間超過下午2點，過濾掉第三個參數 (night) 為 False 的項目
+            filtered_product = [item for item in self.subscribe_product if item[2] is True]
+            self.log.info(f"當前時間已進入夜盤, 當前要訂閱的商品列表: {filtered_product}")
+        else: # 如果未超過下午2點，保留原始 List
+            filtered_product = self.subscribe_product
+            self.log.info(f"當前時間為日盤時段, 當前要訂閱的商品列表: {filtered_product}")
+
+        for item in filtered_product:
             symbol, code = item
             self.subscribe(symbol=symbol, code=code)
             
