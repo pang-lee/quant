@@ -93,9 +93,7 @@ class Vwap(AbstractCalculation):
         ob_top = self.params['ob_top']
         ob_bottom = self.params['ob_bottom']
         close = float(self.data['close'].iloc[-1])
-        
-        self.log.info(f'the close:{close}, {type(close)}, {type(ob_top)}, {type(ob_bottom)}')
-        
+
         self.log.info(f"ob_top: {ob_top}, ob_bottom: {ob_bottom}, 當前時間段{self.timeframe}價格: {close}")
 
         if ob_bottom <= close <= ob_top:
@@ -104,7 +102,7 @@ class Vwap(AbstractCalculation):
         return False
     
     def close_in_std(self, close):
-        if self.data['vwap_upper_2std'] >= close >= self.data['vwap_lower_2std']:
+        if self.data['vwap_upper_2std'].iloc[-1] >= close >= self.data['vwap_lower_2std'].iloc[-1]:
             return True
         
         return False

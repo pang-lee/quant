@@ -702,6 +702,8 @@ class Bilateral(AbstractStrategy):
                 elif isinstance(result, tuple):
                     tuple_results.append(result)  # 保存 tuple 类型的结果
 
+            self.log.info(f"當前尚未進入監控, 檢查計算分析結果(bool判斷: {bool_results}), (vpfr判斷: {tuple_results})")
+            
             if all(bool_results) and tuple_results[0][0] is not False: # 條件判斷可下單
                 for result_tuple in tuple_results:
                     action, support, resistance = result_tuple

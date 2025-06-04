@@ -28,6 +28,7 @@ class Statarb2(AbstractStrategy):
             k_amount = self.lrange_of_redis(redis_k_key, -self.params['k_lookback'], -1)
 
             if len(k_amount) < self.params['k_lookback']:
+                self.log.info(f"當前K棒數量{len(k_amount)}小於{self.params['k_lookback']}")
                 continue
 
             # 只取最近 long_window 根 K 棒

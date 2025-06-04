@@ -7,7 +7,6 @@ import json
 class Tmfrsmc(AbstractStrategy):
     def __init__(self, datas, item, symbol):
         super().__init__(datas, item, symbol, 'profit_ratio1', 'stop_ratio1')
-        self.last_1min_k = None if super().get_from_redis(f"last_k_1min_{self.item['code'][0]}_{self.item['strategy']}") is None else datetime.strptime(super().get_from_redis(f"last_k_1min_{self.item['code'][0]}_{self.item['strategy']}")['ts'], "%Y-%m-%d %H:%M:%S")
         self.current_position1 = None
         
         # k棒VWAP計算時間窗口
@@ -17,50 +16,55 @@ class Tmfrsmc(AbstractStrategy):
             {'timeframe_window': self.params['window_5m'], 'timeframe': '5min'}
         ]
         self.tuple_results = []
-        
+
     def load_k(self):
-        k_amount = self.lrange_of_redis(self.redis_k_key, 0, -1)  # 取出所有資料
+        try:
+            last_1min_k = None if super().get_from_redis(f"last_k_1min_{self.item['code'][0]}_{self.item['strategy']}") is None else datetime.strptime(super().get_from_redis(f"last_k_1min_{self.item['code'][0]}_{self.item['strategy']}")['ts'], "%Y-%m-%d %H:%M:%S")
+            k_amount = self.lrange_of_redis(self.redis_k_key, 0, -1)  # 取出所有資料
 
-        if not k_amount:  # 如果 Redis 沒有資料，返回 0
-            self.log.info("當前redis無法取得k_amount")
+            if not k_amount:  # 如果 Redis 沒有資料，返回 0
+                self.log.info("當前redis無法取得k_amount")
+                return (False)
+
+            # 將 JSON 字串轉為 Python 物件
+            self.k_data = [json.loads(record) for record in k_amount]
+            start_time = (self.current_time - timedelta(days=1)).replace(hour=8, minute=45, second=0, microsecond=0)
+
+            # 轉換為 Pandas DataFrame
+            k_df = pd.DataFrame(self.k_data)
+
+            # 將 'ts' 欄位轉為 datetime 格式，移除時區並轉為 datetime64[ns]
+            k_df['ts'] = pd.to_datetime(k_df['ts'])
+            start_time = pd.Timestamp(start_time).tz_localize(None)
+            current_time = pd.Timestamp(self.current_time).tz_localize(None)
+
+            # 過濾時間範圍：從昨天 08:45 到當前時刻
+            k_df = k_df[(k_df['ts'] >= start_time) & (k_df['ts'] <= current_time)]
+
+            # 如果沒有符合時間範圍的資料，返回 0
+            if k_df.empty:
+                self.log.info("當前取出的k棒資料, 無法過濾出近期一天的K棒")
+                return (False)
+
+            k_df.set_index('ts', inplace=True)
+            latest_k_ts = k_df.index[-1].to_pydatetime()
+
+            if last_1min_k is None:
+                return super().save_to_redis(f"last_k_1min_{self.item['code'][0]}_{self.item['strategy']}", {'ts': latest_k_ts.strftime("%Y-%m-%d %H:%M:%S")}, type='set')
+
+            if latest_k_ts != last_1min_k:
+                super().save_to_redis(f"last_k_1min_{self.item['code'][0]}_{self.item['strategy']}", {'ts': latest_k_ts.strftime("%Y-%m-%d %H:%M:%S")}, type='set')
+
+                data1 = convert_ohlcv(k_df, self.params['k_time_long'])
+                data2 = convert_ohlcv(k_df, self.params['k_time_middle'])
+                data3 = convert_ohlcv(k_df, self.params['k_time_short'])
+
+                return (data1, data2, data3)
+
             return (False)
-
-        # 將 JSON 字串轉為 Python 物件
-        self.k_data = [json.loads(record) for record in k_amount]
-        start_time = (self.current_time - timedelta(days=1)).replace(hour=8, minute=45, second=0, microsecond=0)
-        
-        # 轉換為 Pandas DataFrame
-        k_df = pd.DataFrame(self.k_data)
-
-        # 將 'ts' 欄位轉為 datetime 格式，移除時區並轉為 datetime64[ns]
-        k_df['ts'] = pd.to_datetime(k_df['ts'])
-        start_time = pd.Timestamp(start_time).tz_localize(None)
-        current_time = pd.Timestamp(self.current_time).tz_localize(None)
-        
-        # 過濾時間範圍：從昨天 08:45 到當前時刻
-        k_df = k_df[(k_df['ts'] >= start_time) & (k_df['ts'] <= current_time)]
-
-        # 如果沒有符合時間範圍的資料，返回 0
-        if k_df.empty:
-            self.log.info("當前取出的k棒資料, 無法過濾出近期一天的K棒")
+        except Exception as e:
+            self.log.error(f"當前load_k運行出現錯誤:{e}")
             return (False)
-        
-        k_df.set_index('ts', inplace=True)
-        latest_k_ts = k_df.index[-1].to_pydatetime()
-
-        if self.last_1min_k is None:
-            return super().save_to_redis(f"last_k_1min_{self.item['code'][0]}_{self.item['strategy']}", {'ts': latest_k_ts.strftime("%Y-%m-%d %H:%M:%S")}, type='set')
-
-        if latest_k_ts != self.last_1min_k:
-            super().save_to_redis(f"last_k_1min_{self.item['code'][0]}_{self.item['strategy']}", {'ts': latest_k_ts.strftime("%Y-%m-%d %H:%M:%S")}, type='set')
-        
-            data1 = convert_ohlcv(k_df, self.params['k_time_long'])
-            data2 = convert_ohlcv(k_df, self.params['k_time_middle'])
-            data3 = convert_ohlcv(k_df, self.params['k_time_short'])
-            
-            return (data1, data2, data3)
-        
-        return (False)
 
     def check_position(self):
         code1 = self.item['code'][0]
@@ -528,8 +532,9 @@ class Tmfrsmc(AbstractStrategy):
 
     def execute(self):
         try:
+            self.log.info(f"當前監控為: {self.params['monitor']}, 大時間方向: {self.params['direction']}")
             if not self.params['monitor'] or self.params['direction'] == 0: # SMC判定不監控
-                self.log.info(f"當前監控為: {self.params['monitor']} 或 大時間無方向: {self.params['direction']}")
+                self.log.info(f"當前SMC判定不監控")
                 self.nothing_order()
                 return self.order
             

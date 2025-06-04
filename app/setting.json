@@ -87,7 +87,7 @@
                     "stop_ratio2": 250,
                     "stop_ratio1": 50,
                     "window_trading_days": 3,
-                    "beta": 0.9970970878671657,
+                    "beta": 0.9984221416087846,
                     "K_time": 30,
                     "position_type": "statarb",
                     "broker": "shioaji",
