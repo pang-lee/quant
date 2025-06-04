@@ -677,6 +677,7 @@ class Bilateral(AbstractStrategy):
     
     def execute(self):
         try:
+            self.log.info(f"當前監控為: {self.params['monitor']}, 即將進行運算")
             if self.params['monitor']: # 已經進入震盪, 價格監控找機會進場
                 self.log.info(f"當前進入價格監控")
 
@@ -688,6 +689,7 @@ class Bilateral(AbstractStrategy):
 
             self.load_k()
             if not self.calculate:
+                self.log.info(f"當前時間沒更新, 不進行策略運算")
                 self.nothing_order()
                 return self.order
 
