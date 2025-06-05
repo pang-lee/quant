@@ -375,7 +375,7 @@ class Bilateral(AbstractStrategy):
                 }
             }
             
-            return self.order.extend([(self.symbol, self.item, True, {'monitor': False}, publish, order)])
+            return self.order.extend([(self.symbol, self.item, True, {'monitor': False}, publish, {})])
         
         # ---------------- 先判斷倉位狀態 ----------------
         if action == 2: # 止損多倉

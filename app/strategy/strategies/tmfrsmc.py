@@ -233,7 +233,25 @@ class Tmfrsmc(AbstractStrategy):
         return False
 
     def publish_order(self, action, **params):
-        if action == 1: # 多單
+        if action == 'quit':
+            publish = {
+                'title': '當前價格超出OB範圍不再監控SMC',
+                'description': f"SMC訂單塊失效: {params.get('code')}",
+                'footer': f'{self.symbol}',
+                'color': 0x8B4513,
+                'notify_params': {
+                    '代號': params.get('code'),
+                    '時間': params.get('ts'),
+                    "策略": self.item['strategy'],
+                    '當前點數': params.get('current_price'),
+                    'OB價位高低點': f"Top: {round(self.params['ob_top'], 2)} ~ Bottom: {round(self.params['ob_bottom'], 2)}",
+                    '進場類型': '多' if self.params['direction'] == 1 else '空',
+                }
+            }
+            
+            return self.order.extend([(self.symbol, self.item, True, {'monitor': False}, publish, {})])         
+        
+        elif action == 1: # 多單
             publish = {
                 'title': '可進場通知(尚未下單)',
                 'description': f"SMC進場: {params.get('code')}做多",
@@ -530,6 +548,21 @@ class Tmfrsmc(AbstractStrategy):
             
         return self.order
 
+    def check_price_over(self):
+        latest_close = float(self.last_data['tick'][0]['close'])
+        code = self.item['code'][0]
+        ts = self.last_data['ts']
+        
+        # 根據 direction 判斷價格是否觸發退出條件
+        trigger = (self.params['direction'] == 1 and latest_close < self.params['ob_bottom']) or \
+                  (self.params['direction'] != 1 and latest_close > self.params['ob_top'])
+
+        if trigger and not self.check_position():
+            self.publish_order('quit', code=code, ts=ts, current_price=latest_close)
+            return True
+        
+        return False
+
     def execute(self):
         try:
             self.log.info(f"當前監控為: {self.params['monitor']}, 大時間方向: {self.params['direction']}")
@@ -537,6 +570,10 @@ class Tmfrsmc(AbstractStrategy):
                 self.log.info(f"當前SMC判定不監控")
                 self.nothing_order()
                 return self.order
+
+            if self.check_price_over():
+                self.log.info(f"當前SMC價格超出OB範圍, SMC失效")
+                return self.order                
             
             result_k = self.load_k()
 
