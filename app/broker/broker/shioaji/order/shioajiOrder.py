@@ -498,19 +498,32 @@ class ShioajiOrderManager(BaseOrderManager):
         
         if order_info['symbol'] == 'stock':# 股票交易的費用計算
             if position_type == "short":  # 先賣後買(做空)
-                total_fee = (entry_price * order_info['commission_tax']['comm'] + entry_price * order_info['commission_tax']['tax']) + (exit_price * order_info['commission_tax']['comm'])
-                profit_loss = (entry_price - exit_price) * quantity
+                total_fee = (quantity * 1000) * (((entry_price * order_info['commission_tax']['comm'] + entry_price * order_info['commission_tax']['tax']) + (exit_price * order_info['commission_tax']['comm'])))
+                profit_loss = (entry_price - exit_price) * quantity * 1000
                 
             elif position_type == "long":  # 先買後賣(做多)
-                total_fee = (exit_price * order_info['commission_tax']['comm'] + exit_price * order_info['commission_tax']['tax']) + (entry_price * order_info['commission_tax']['comm'])
-                profit_loss = (exit_price - entry_price) * quantity
+                total_fee = (quantity * 1000) * (((exit_price * order_info['commission_tax']['comm'] + exit_price * order_info['commission_tax']['tax']) + (entry_price * order_info['commission_tax']['comm'])))
+                profit_loss = (exit_price - entry_price) * quantity * 1000
 
         elif order_info['symbol'] == 'future':# 期貨交易的費用計算
-            total_fee = (quantity * order_info['commission_tax']['comm'] + entry_price * order_info['commission_tax']['tax'] * order_info['commission_tax']['tick_size'] * quantity) + (quantity * order_info['commission_tax']['comm'] + exit_price * order_info['commission_tax']['tax'] * order_info['commission_tax']['tick_size'] * quantity)
-            if position_type == 'short':
-                profit_loss = (entry_price - exit_price) * quantity * order_info['commission_tax']['tick_size']
-            elif position_type == 'long':
-                profit_loss = (exit_price - entry_price) * quantity * order_info['commission_tax']['tick_size']
+            if 'trading_symbol' in order_info['commission_tax']: # 特殊定義, 可能為股票期貨
+                if order_info['commission_tax']['trading_symbol'] == 'stock':
+                    total_fee = ((quantity * order_info['commission_tax']['levearge'] * order_info['commission_tax']['tax']) * (entry_price +  exit_price)) + (2 * (order_info['commission_tax']['comm']))
+                    
+                    if position_type == "short":  # 先賣後買(做空)
+                        profit_loss = (entry_price - exit_price) * quantity * order_info['commission_tax']['levearge']
+
+                    elif position_type == "long":  # 先買後賣(做多)
+                        profit_loss = (exit_price - entry_price) * quantity * order_info['commission_tax']['levearge']
+            
+            else: # 當前交易為指數期貨
+                total_fee = (quantity * order_info['commission_tax']['comm'] + entry_price * order_info['commission_tax']['tax'] * order_info['commission_tax']['tick_size'] * quantity) + (quantity * order_info['commission_tax']['comm'] + exit_price * order_info['commission_tax']['tax'] * order_info['commission_tax']['tick_size'] * quantity)
+                
+                if position_type == 'short':
+                    profit_loss = (entry_price - exit_price) * quantity * order_info['commission_tax']['tick_size']
+                    
+                elif position_type == 'long':
+                    profit_loss = (exit_price - entry_price) * quantity * order_info['commission_tax']['tick_size']
 
         # 記錄交易結果
         new_captal = capital + int(profit_loss) - int(total_fee)

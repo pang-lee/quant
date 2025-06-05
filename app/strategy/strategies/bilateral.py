@@ -4,7 +4,7 @@ import json, ast
 
 class Bilateral(AbstractStrategy):
     def __init__(self, datas, item, symbol, k=3600):
-        super().__init__(datas, item, symbol, 'oscillation_profit_ratio1', 'oscillation_stop_ratio1', k)
+        super().__init__(datas, item, symbol, 'oscillation_profit_ratio1', 'oscillation_stop_ratio1', k=k)
         self.last_k_ts = None if super().get_from_redis(f"last_k_ts_{self.item['code'][0]}_{self.item['strategy']}") is None else datetime.strptime(super().get_from_redis(f"last_k_ts_{self.item['code'][0]}_{self.item['strategy']}")['ts'], "%Y-%m-%d %H:%M:%S")
         self.total_bid_volume = 0
         self.total_ask_volume = 0
@@ -704,7 +704,7 @@ class Bilateral(AbstractStrategy):
                 elif isinstance(result, tuple):
                     tuple_results.append(result)  # 保存 tuple 类型的结果
 
-            self.log.info(f"當前尚未進入監控, 檢查計算分析結果(bool判斷: {bool_results}), (vpfr判斷: {tuple_results})")
+            self.log.info(f"當前尚未進入監控, 檢查計算分析結果(bool判斷: {bool_results}), (vpfr判斷: {tuple_results})\n\n")
             
             if all(bool_results) and tuple_results[0][0] is not False: # 條件判斷可下單
                 for result_tuple in tuple_results:

@@ -6,7 +6,7 @@ import json
 
 class Statarb2(AbstractStrategy):
     def __init__(self, datas, item, symbol, k=300):
-        super().__init__(datas, item, symbol, 0, ['stop_ratio1', 'stop_ratio2'], k)
+        super().__init__(datas, item, symbol, 0, ['stop_ratio1', 'stop_ratio2'], k=k)
         self.code_mapping = {'FXFR1': 'A', 'ZFFR1': 'B'}
         self.current_position1 = None
         self.current_position2 = None

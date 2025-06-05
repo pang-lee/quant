@@ -8,7 +8,7 @@ from utils.log import get_module_logger
 import importlib, json, pytz, uuid
 
 class AbstractStrategy(ABC):
-    def __init__(self, datas, item, symbol, profit_stop, stop_loss, k=60):
+    def __init__(self, datas, item, symbol, profit_stop, stop_loss, tick_size=0, k=60):
         self.redis = get_redis_connection()
         self.interval = k // 60 # Convert to "minutes"
         self.item = item
@@ -38,6 +38,27 @@ class AbstractStrategy(ABC):
             self.stop_loss = dict(zip(self.item['code'], [self.params[param] for param in stop_loss]))
         else:
             self.stop_loss = self.params[stop_loss]
+
+        # 處理 tick_size 參數
+        if tick_size == 0:
+            self.tick_size = 0
+        elif isinstance(tick_size, list):
+            # 检查列表中是否有字典, 做股期或配對交易可以使用(list of dict => [{tick_size: tick_size1, levearge: levearge1, symbol: 股票or期貨, ...}]) => 可能是股票期貨, 或者有槓桿的商品
+            has_dict = any(isinstance(d, dict) for d in tick_size)
+            
+            if not has_dict: # 單純獲得tick_size列表 [tick_size1, tick_size2, ...], 將組合出 => {cod1: self.params['tick_size1'], code2: self.params['tick_size2']...}
+                self.tick_size = dict(zip(self.item['code'], [self.params[param] for param in tick_size]))
+                
+            else: # 如果列表中包含字典，提取每个字典中的 'tick_size', 'leverage', ...etc, 并与 self.item['code'] 配对 => 詳細舉例請參考 AbstractPositionControl -> calculate_take_profit或calculate_stop_loss
+                self.tick_size = {
+                    code: {
+                        'tick_size': self.params[d['tick_size']],
+                        'leverage': self.params[d['leverage']],
+                        'symbol': d.get('symbol', 'index') # 添加要交易的商品, 默認預設為index, 如果配對交易其中一邊為股票則添加stock
+                    } for code, d in zip(self.item['code'], tick_size)
+                }
+        else:
+            self.tick_size = self.params[tick_size]
 
         self.calculate = []
         self.order = [] # 組裝訂單
@@ -293,7 +314,7 @@ class AbstractStrategy(ABC):
         return result[codes[0]] if len(codes) == 1 else result
 
     def build_position_control(self):
-        self.position_controls = self.position_controls[self.params['position_type']](take_profit=self.profit_stop, stop_loss=self.stop_loss, symbol=self.symbol, redis_key=self.position_redis_key)
+        self.position_controls = self.position_controls[self.params['position_type']](take_profit=self.profit_stop, stop_loss=self.stop_loss, tick_size=self.tick_size, symbol=self.symbol, redis_key=self.position_redis_key)
         return
 
     def execute_position_control(self, type, **params):
@@ -322,7 +343,7 @@ class AbstractStrategy(ABC):
             'order_type': order_type or ({'order_type': "IOC", 'price_type': "MKT", 'order_lot': "Common"} if symbol == 'stock' else {'order_type': "IOC", 'price_type': "MKT", 'octype': "Auto"}),
             'position_key': self.position_redis_key,
             'analyze_key': self.analyze_redis_key,
-            'commission_tax': comm_tax or {'comm': 0, 'tax': 0, 'tick_size': 0},
+            'commission_tax': comm_tax or {'comm': 0, 'tax': 0, 'tick_size': 0, 'levearge': 0, 'trading_symbol': self.symbol},
             'capital': (capital or 10000),
             'strategy': self.item['strategy'],
             'position_type': {
@@ -330,6 +351,7 @@ class AbstractStrategy(ABC):
                 'params': {
                     'take_profit': self.profit_stop,
                     'stop_loss': self.stop_loss,
+                    'tick_size': self.tick_size,
                     'symbol': self.symbol,
                     'redis_key': self.position_redis_key
                 }

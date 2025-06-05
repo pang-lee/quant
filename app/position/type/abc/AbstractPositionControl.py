@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
-
-import redis.lock
+import redis
+from redis.lock import Lock
 from db.redis import get_redis_connection
 import json, ast, os, time
 from utils.log import get_module_logger
-import redis
-from redis.lock import Lock
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -27,11 +25,12 @@ class AbstractPositionControl(ABC):
     return 1
     """
     
-    def __init__(self, take_profit, stop_loss, symbol, redis_key):
+    def __init__(self, take_profit, stop_loss, tick_size, symbol, redis_key):
         self.redis = get_redis_connection()
         self.cluster_host = os.getenv('REDIS_HOST')
         self.take_profit = take_profit
         self.stop_loss = stop_loss
+        self.tick_size = tick_size
         self.symbol = symbol
         self.redis_key = redis_key
         self.log = get_module_logger(f"position/{redis_key.replace(':', '_')}")
@@ -213,8 +212,53 @@ class AbstractPositionControl(ABC):
             
         return True
     
+    def determine_plt(self, **params):
+        code = params.get('code')
+        p_l = params.get('p_l')
+        
+        if p_l == 'profit':
+            # 判斷take_profit是否有交易多個商品, 如果多商品會是dict格式 => {代號1: 止盈1, 代號2, 止盈2}
+            if isinstance(self.take_profit, dict):
+                if code is None:
+                    raise ValueError("當 take_profit 為字典時，必須提供 code 參數")
+                if code not in self.take_profit:
+                    raise ValueError(f"code {code} 不存在於 take_profit 字典中")
+                point_value = self.take_profit[code]
+                
+            else: # 如果只有交易一個商品則直接回傳self.params['take_profit']
+                point_value = self.take_profit
+        
+        elif p_l == 'loss':
+            # 判斷stop_loss是否有交易多個商品, 如果多商品會是dict格式 => {代號1: 止損1, 代號2, 止損2}
+            if isinstance(self.stop_loss, dict):
+                if code is None:
+                    raise ValueError("當 stop_loss 為字典時，必須提供 code 參數")
+                if code not in self.stop_loss:
+                    raise ValueError(f"code {code} 不存在於 stop_loss 字典中")
+                point_value = self.stop_loss[code]
+                
+            else: # 如果只有交易一個商品則直接回傳self.params['stop_loss']
+                point_value = self.stop_loss
+        
+        # 如果傳遞的tick_size是dict, 那麼會有多種資訊
+        if isinstance(self.tick_size, dict):
+            if code is None:
+                raise ValueError("當 tick_size 為字典時，必須提供 code 參數")
+            if code not in self.tick_size:
+                raise ValueError(f"code {code} 不存在於 tick_size 字典中")
+            tick_size = self.tick_size[code]
+            
+        else: # 如果只有交易一個商品則直接回傳self.params['tick_size']
+            tick_size = self.tick_size
+            
+        return point_value, tick_size
+    
     def calculate(self, **params):
-        """計算單一價格的止盈與止損"""
+        """
+        計算單一價格的止盈與止損:
+        - 如果有交易多筆, 傳遞code, 可以從code來獲得止盈, 止損, tick_size
+        - 如果code沒傳遞則代表當前交易一筆(故self.take_proft, self.stop_loss, self.tick_size都會是單個數值)
+        """
         action = params.get('action')
         current_price = params.get('current_price')
         code = params.get('code', None)
@@ -230,60 +274,139 @@ class AbstractPositionControl(ABC):
         return take_profit, stop_loss
         
     def calculate_take_profit(self, current_price, position_type, code):
-        """根據商品類型與倉位類型計算止盈"""
+        """
+        根據商品類型與倉位類型計算止盈:
+        take_profit傳遞會有以下情況:
+            1. self.take_profit => 交易單商品, 也就是單商品的止盈
+            
+            2.{
+                'TMFR': self.params['take_profit1'],
+                'MXFR': self.params['take_profit2']
+            }
+            
+        tick_size傳遞會有多種情況如下:
+            1.{
+                'TMFR': {
+                    'tick_size': self.params['tick_size1'],
+                    'leverage': self.params['leverage1'],
+                    'symbol': 'ETF'
+                },
+                'MXFR': {
+                    'tick_size': self.params['tick_size2'],
+                    'leverage': self.params['leverage2'],
+                    'symbol': 'ETF' 
+                }
+                ...
+            }
+            
+            2.{
+                'TMFR': self.params['tick_size1'],
+                'MXFR': self.params['tick_size2']
+            }
+            
+            3. self.params['tick_size'] => (單獨某商品的tick)
+        """
         if self.take_profit == 0:
             return 0
+
+        tick_symbol = 'index' # 默認交易商品為指數index
+        take_profit_value, tick_size = self.determine_plt(code=code, p_l='profit')
         
-        if isinstance(self.take_profit, dict):
-            if code is None:
-                raise ValueError("當 take_profit 為字典時，必須提供 code 參數")
-            if code not in self.take_profit:
-                raise ValueError(f"code {code} 不存在於 take_profit 字典中")
-            take_profit_value = self.take_profit[code]
-        else:
-            take_profit_value = self.take_profit
+        if isinstance(tick_size, dict): # 情况1：包含多属性的嵌套字典
+            if 'tick_size' in tick_size  and 'symbol' in tick_size:
+                tick_symbol = tick_size['symbol']
+                tick = tick_size['tick_size']
+      
+        else: # 情况2：直接的数值
+            tick = tick_size
         
-        if self.symbol == 'stock':
+        if self.symbol == 'stock': # 交易商品為股票, 故沒有槓桿, 直接用tick算
             if position_type == 'long':
-                return current_price * (1 + take_profit_value / 100)
+                return round((current_price * (1 + take_profit_value)) / tick) * tick
             else:  # short
-                return current_price * (1 - take_profit_value / 100)
-            
+                return round((current_price * (1 - take_profit_value)) / tick) * tick
+
         elif self.symbol == 'future':
-            if position_type == 'long':
-                return int(current_price) + int(take_profit_value)
-            else:  # short
-                return int(current_price) - int(take_profit_value)
-            
+            if tick_symbol == 'stock': # 交易的商品為股票期貨, 或者配對交易的另一邊為現貨個股
+                if position_type == 'long':
+                    return round((current_price * (1 + take_profit_value)) / tick) * tick
+                else:  # short
+                    return round((current_price * (1 - take_profit_value)) / tick) * tick
+                
+            else: # 交易的商品為指數期貨, 不需要tick_size
+                if position_type == 'long':
+                    return int(current_price) + int(take_profit_value)
+                else:  # short
+                    return int(current_price) - int(take_profit_value)
+
         else:
             raise ValueError("止盈計算不支持的商品類型")
 
     def calculate_stop_loss(self, current_price, position_type, code):
-        """根據商品類型與倉位類型計算止損"""
+        """
+        根據商品類型與倉位類型計算止損
+        stop_loss傳遞會有以下情況:
+            1. self.stop_loss => 交易單商品, 也就是單商品的止盈
+            
+            2.{
+                'TMFR': self.params['stop_loss1'],
+                'MXFR': self.params['stop_loss2']
+            }
+            
+        如果tick_size傳遞是dict, 那麼會有多種情況如下:
+            1.{
+                'TMFR': {
+                    'tick_size': self.params['tick_size1'],
+                    'leverage': self.params['leverage1'],
+                    'symbol': 'ETF'  # 使用 self.symbol 填充
+                },
+                'MXFR': {
+                    'tick_size': self.params['tick_size2'],
+                    'leverage': self.params['leverage2'],
+                    'symbol': 'ETF'  # 使用 self.symbol 填充
+                }
+                ...
+            }
+            
+            2.{
+                'TMFR': self.params['tick_size1'],
+                'MXFR': self.params['tick_size2']
+            }
+            
+            3. self.params['tick_size'] => (單獨某商品的tick)
+        """
         if self.stop_loss == 0:
             return 0
         
-        # 判斷 stop_loss 是否為字典
-        if isinstance(self.stop_loss, dict):
-            if code is None:
-                raise ValueError("當 stop_loss 為字典時，必須提供 code 參數")
-            if code not in self.stop_loss:
-                raise ValueError(f"code {code} 不存在於 stop_loss 字典中")
-            stop_loss_value = self.stop_loss[code]
-        else:
-            stop_loss_value = self.stop_loss
+        tick_symbol = 'index' # 默認交易商品為指數index
+        stop_loss_value, tick_size = self.determine_plt(code=code, p_l='loss')
+        
+        if isinstance(tick_size, dict): # 情况1：包含多属性的嵌套字典
+            if 'tick_size' in tick_size  and 'symbol' in tick_size:
+                tick_symbol = tick_size['symbol']
+                tick = tick_size['tick_size']
+      
+        else: # 情况2：直接的数值
+            tick = tick_size
         
         if self.symbol == 'stock':
             if position_type == 'long':
-                return current_price * (1 - stop_loss_value / 100)
+                return round((current_price * (1 - stop_loss_value)) / tick) * tick
             else:  # short
-                return current_price * (1 + stop_loss_value / 100)
+                return round((current_price * (1 + stop_loss_value)) / tick) * tick
             
         elif self.symbol == 'future':
-            if position_type == 'long':
-                return int(current_price) - int(stop_loss_value)
-            else:  # short
-                return int(current_price) + int(stop_loss_value)
+            if tick_symbol == 'stock': # 交易的商品為股票期貨, 或者配對交易的另一邊為現貨個股
+                if position_type == 'long':
+                    return round((current_price * (1 - stop_loss_value)) / tick) * tick
+                else:  # short
+                    return round((current_price * (1 + stop_loss_value)) / tick) * tick
+            
+            else: # 交易的商品為指數期貨, 不需要tick_size
+                if position_type == 'long':
+                    return int(current_price) - int(stop_loss_value)
+                else:  # short
+                    return int(current_price) + int(stop_loss_value)
             
         else:
             raise ValueError("止損計算不支持的商品類型")
