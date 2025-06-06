@@ -46,6 +46,14 @@ class TaskScheduler:
                 "trigger": CronTrigger(hour=7, minute=30),
                 "kwargs": {"lock": self.process_lock}
             },
+            
+                        {
+                "name": "clear_redis",
+                "trigger": CronTrigger(hour=15, minute=6),
+                "kwargs": {"lock": self.process_lock}
+            },
+            
+            
             {
                 "name": "calculate_coeff",
                 "trigger": CronTrigger(hour=14, minute=15),
