@@ -258,7 +258,8 @@ class CalculateCoeffTask(Task):
             if code and csv_path:
                 # 確保 base_path 存在，若不存在則創建
                 if not os.path.exists(csv_path):
-                    os.makedirs(csv_path)
+                    # 看是否有需要特別存放或處理
+                    pass
                 self.log.info(f"{code}資料的交易日數量不足, 僅有{len(unique_dates)}天, 但是需要 {window_trading_days}天.")
             return None, False  # 數據不足
 
@@ -271,7 +272,8 @@ class CalculateCoeffTask(Task):
         if unique_trading_days < window_trading_days:
             if code and csv_path:
                 if not os.path.exists(csv_path):
-                    os.makedirs(csv_path)
+                    # 看是否有需要特別存放或處理
+                    pass
                 self.log.info(f"{code}篩選後的交易日數量不足, 僅有{unique_trading_days}天, 但是需要 {window_trading_days}天.")
             return None, False
 
