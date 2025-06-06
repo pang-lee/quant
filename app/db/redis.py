@@ -78,6 +78,14 @@ def create_consumer_group(redis_cli, stream_key, group):
             raise  # 其他錯誤則重新拋出
         
 async def clear_redis(lock, output_dir="data/preserve"):
+    """
+    定時清理redis任務:
+    param中cross_day為True, 策略會跨天(跨夜盤, 波段..等) => 會將倉位資料清理後重新放回redis中
+    如果是當沖或者步跨天的交易cross_day為false之後, 倉位資料將會保存並不添加回redis
+
+    param中night為True, 策略會夜盤執行 => 夜磐時會進行資料清理, 將整理後的k棒依照時間放回redis
+    如果是日盤但跨天策略, night為False且cross_day為True, 清晨會將策略的K棒資料填回redis
+    """
     redis_conn = get_redis_connection()
     
     with lock: # 讀取setting.json
@@ -91,7 +99,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
     preserved_suffixes = []
     deprecated = []
     
-    # 遍历所有商品类别（如 'future', 'stock' 等）
+    # 遍历所有商品类别（如 'future', 'stock' 等）, 檢查cross_day確定是否跨天(波段, 夜盤..等)
     for category_key, category_items in items.items():
         # 遍历该类别下的每个商品条目
         for item in category_items:
@@ -154,13 +162,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
                 df.set_index('ts', inplace=True)
                 
                 # 將 OHLCV 欄位名稱改為小寫
-                df = df.rename(columns={ 
-                    'Open': 'open',
-                    'High': 'high',
-                    'Low': 'low',
-                    'Close': 'close',
-                    'Volume': 'volume'
-                })
+                df = df.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
                 
                 k_df = convert_ohlcv(df, timeframe)
 
@@ -291,33 +293,64 @@ async def clear_redis(lock, output_dir="data/preserve"):
     
     def fetch_data(data, output_dir):
         # 處理 data 陣列（例如 ['TMFR1_bilateral_1k', 'MXFR1_statarb1_60k', ...]）, 產生於Abstrastrategy
+        # result = []
+        # seen_pairs = set()  # 去重 (code, strategy, timeframe)
+        
+        # for key in data:
+        #     try:
+        #         # 以 _ 分割，假設格式為 code_strategy_timeframe
+        #         parts = key.split('_')
+        #         if len(parts) < 3:
+        #             log.error(f"鍵格式無效：{key}，應為 code_strategy_timeframe")
+        #             continue
+                
+        #         # 提取 code, strategy, timeframe
+        #         code = parts[0]  # 例如 TMFR1
+        #         strategy = parts[1]  # 例如 bilateral
+        #         timeframe = parts[-1]  # 例如 1k, 60k
+                
+        #         # 提取 timeframe 的數字部分（移除 k）
+        #         if not timeframe.endswith('k'):
+        #             log.error(f"鍵 {key} 不以 k 結尾，跳過")
+        #             continue
+        #         timeframe_num = timeframe[:-1]  # 移除 k，例如 1, 60
+        #         if not timeframe_num.isdigit():
+        #             log.error(f"timeframe {timeframe} 的前綴 {timeframe_num} 不是數字，跳過")
+        #             continue
+                
+        #         # 去重
+        #         pair = (code, strategy, timeframe_num)
+        #         if pair in seen_pairs:
+        #             continue
+        #         seen_pairs.add(pair)
+                
+        #         # 添加到結果，包含完整鍵
+        #         result.append({
+        #             'code': code,
+        #             'strategy': strategy,
+        #             'timeframe': timeframe_num,
+        #             'full_key': key  # 保留原始鍵，例如 MXFR1_statarb1_60k
+        #         })
+        #     except Exception as e:
+        #         log.error(f"處理鍵 {key} 失敗：{e}")
+        #         continue
+        
         result = []
         seen_pairs = set()  # 去重 (code, strategy, timeframe)
-        
-        for key in data:
-            try:
-                # 以 _ 分割，假設格式為 code_strategy_timeframe
-                parts = key.split('_')
-                if len(parts) < 3:
-                    log.error(f"鍵格式無效：{key}，應為 code_strategy_timeframe")
-                    continue
-                
-                # 提取 code, strategy, timeframe
-                code = parts[0]  # 例如 TMFR1
-                strategy = parts[1]  # 例如 bilateral
-                timeframe = parts[-1]  # 例如 1k, 60k
-                
-                # 提取 timeframe 的數字部分（移除 k）
-                if not timeframe.endswith('k'):
-                    log.error(f"鍵 {key} 不以 k 結尾，跳過")
-                    continue
-                timeframe_num = timeframe[:-1]  # 移除 k，例如 1, 60
-                if not timeframe_num.isdigit():
-                    log.error(f"timeframe {timeframe} 的前綴 {timeframe_num} 不是數字，跳過")
-                    continue
-                
+        current_time = datetime.now(pytz.timezone("Asia/Taipei")).time()
+
+        for item_key, item_list in items.items():
+            params = item_list.get("params", {})
+            
+            # 應用 night 過濾（僅在下午 2:00 後）
+            if night_filter(current_time) and not params.get("night", False):
+                log.info(f"跳過 strategy: {item_list['strategy']}，night 未設定或為 False")
+                continue
+            
+            k_time = item_list.get('K_time', 1)
+            for code in item_list['code']:
                 # 去重
-                pair = (code, strategy, timeframe_num)
+                pair = (code, item_list['strategy'], k_time)
                 if pair in seen_pairs:
                     continue
                 seen_pairs.add(pair)
@@ -325,20 +358,18 @@ async def clear_redis(lock, output_dir="data/preserve"):
                 # 添加到結果，包含完整鍵
                 result.append({
                     'code': code,
-                    'strategy': strategy,
-                    'timeframe': timeframe_num,
-                    'full_key': key  # 保留原始鍵，例如 MXFR1_statarb1_60k
+                    'strategy': item_list['strategy'],
+                    'timeframe': item_list['K_time'],
+                    'full_key': f"{code}_{item_list['strategy']}_{k_time}k"  # 拼接原始key，例如 MXFR1_statarb1_60k
                 })
-            except Exception as e:
-                log.error(f"處理鍵 {key} 失敗：{e}")
-                continue
-        
+
         # 驗證 code 和 strategy 是否在 cross_day=True 的 items 中
         valid_result = []
         for pair in result:
             code = pair['code']
             strategy = pair['strategy']
             full_key = pair['full_key']
+            
             # 檢查 items 中是否有匹配的 code 和 strategy 且 cross_day=True
             is_valid = False
             for item_key, item_list in items.items():
@@ -351,10 +382,13 @@ async def clear_redis(lock, output_dir="data/preserve"):
                         pair['item_key'] = item_key  # 儲存商品類型（例如 'future'）
                         pair['output_path'] = os.path.join(output_dir, strategy, full_key)
                         break
+                    
                 if is_valid:
                     break
+                
             if is_valid:
                 valid_result.append(pair)
+                
             else:
                 log.warning(f"code {code} 和 strategy {strategy} 未找到對應的 cross_day=True item")
 
@@ -466,7 +500,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
     # -----------------  清理資料主程序 ------------------
     # 儲存保留的鍵和重新獲取歷史資料
     preserved_data = {}
-    refetch_data = []
+    # refetch_data = []
     
     log.info(f"所有的redis_key:{redis_conn.scan_iter()}")
 
@@ -482,16 +516,16 @@ async def clear_redis(lock, output_dir="data/preserve"):
             any(key.endswith(suffix) for suffix in preserved_suffixes)
         )
         
-        # 檢查是否為 _k 結尾的鍵
-        if key.endswith('k'):
-            key_parts = key.split('_') # 將 key 以 _ 分割
+        # # 檢查是否為 _k 結尾的鍵
+        # if key.endswith('k'):
+        #     key_parts = key.split('_') # 將 key 以 _ 分割
 
-            if len(key_parts) >= 3: # 確保分割後有足夠的部分（至少有三部分，例如 TMFR_biliateral_1K）
-                middle_part = key_parts[1] # 取出中間部分（例如 biliateral 或 daytrade）
-                # 檢查中間部分是否在 deprecated 列表中
-                if middle_part not in deprecated:
-                    refetch_data.append(key)
-            continue
+        #     if len(key_parts) >= 3: # 確保分割後有足夠的部分（至少有三部分，例如 TMFR_biliateral_1K）
+        #         middle_part = key_parts[1] # 取出中間部分（例如 biliateral 或 daytrade）
+        #         # 檢查中間部分是否在 deprecated 列表中
+        #         if middle_part not in deprecated:
+        #             refetch_data.append(key)
+        #     continue
 
         # should_preserve(hash表) => 例: 倉位資料, K棒資料(須按時間捨棄部分)
         if should_preserve:
@@ -538,22 +572,17 @@ async def clear_redis(lock, output_dir="data/preserve"):
         save_data(data, strategy, key, output_dir)
 
     # 重新獲得部分歷史行情資料
-    refetch_list = fetch_data(refetch_data, output_dir)
+    refetch_list = fetch_data(output_dir)
+    # refetch_list = fetch_data(refetch_data, output_dir)
+
     history_refetch(refetch_list)
     
     # 清空 Redis 資料庫
     try:
         redis_conn.flushall()
         log.info("成功清空當前 Redis 資料庫, 將重新添加redis的consumer_gruop")
-        # 過濾 night 為 True 的資料
-        filtered_data = {
-            key: [item for item in value if item["params"].get("night", False) is True]
-            for key, value in items.items()
-        }
-        # 移除空陣列
-        filtered_data = {k: v for k, v in filtered_data.items() if v}
-        
-        set_redis_consumer(filtered_data, redis_conn)
+
+        set_redis_consumer(items, redis_conn)
         log.info("成功重新創建並添加有night參數的consumer_gruop")
         
     except Exception as e:

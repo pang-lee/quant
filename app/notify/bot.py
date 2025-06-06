@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from distutils.util import strtobool
 import os, sys, asyncio
 from dotenv import load_dotenv
 load_dotenv()
@@ -12,7 +13,7 @@ class DC(commands.Bot):
         intents.members = True
         self.queue = queue
         self.broker = broker
-        self.isDev = os.getenv('IS_DEV', 'false').lower() in ('true', '1', 'yes')
+        self.isDev = bool(strtobool(os.getenv('IS_DEV', 'true')))
 
         super().__init__(command_prefix="/", intents=intents)
     

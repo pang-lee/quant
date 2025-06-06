@@ -1,6 +1,5 @@
 from broker.broker.shioaji.order.shioajiOrder import ShioajiOrderManager
 from broker.abc.AbstractBroker import AbstractBroker
-from data.broker.shioaji.ShioajiDataSource import ShioajiDataSource
 import shioaji as sj
 import threading, os
 from distutils.util import strtobool

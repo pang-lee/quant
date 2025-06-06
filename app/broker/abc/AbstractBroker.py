@@ -9,7 +9,7 @@ class AbstractBroker(ABC):
         self.position_controls = load_position_controls()  # 加載所有艙位控制
 
     def build_position_control(self, order_params):
-        return self.position_controls[order_params['class_name']](take_profit=order_params['params']['take_profit'], stop_loss=order_params['params']['stop_loss'], symbol=order_params['params']['symbol'], redis_key=order_params['params']['redis_key'])
+        return self.position_controls[order_params['class_name']](take_profit=order_params['params']['take_profit'], stop_loss=order_params['params']['stop_loss'], tick_size=order_params['params']['tick_size'], symbol=order_params['params']['symbol'], redis_key=order_params['params']['redis_key'])
     
     def _get_order_method(self, result_type):
         """根據 result_type 分發至不同的訂單管理方法"""

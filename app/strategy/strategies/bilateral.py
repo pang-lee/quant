@@ -3,8 +3,8 @@ from datetime import datetime, time
 import json, ast
 
 class Bilateral(AbstractStrategy):
-    def __init__(self, datas, item, symbol, k=3600):
-        super().__init__(datas, item, symbol, 'oscillation_profit_ratio1', 'oscillation_stop_ratio1', k=k)
+    def __init__(self, datas, item, symbol):
+        super().__init__(datas, item, symbol, 'oscillation_profit_ratio1', 'oscillation_stop_ratio1')
         self.last_k_ts = None if super().get_from_redis(f"last_k_ts_{self.item['code'][0]}_{self.item['strategy']}") is None else datetime.strptime(super().get_from_redis(f"last_k_ts_{self.item['code'][0]}_{self.item['strategy']}")['ts'], "%Y-%m-%d %H:%M:%S")
         self.total_bid_volume = 0
         self.total_ask_volume = 0

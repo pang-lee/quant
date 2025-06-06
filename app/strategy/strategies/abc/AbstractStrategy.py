@@ -8,9 +8,8 @@ from utils.log import get_module_logger
 import importlib, json, pytz, uuid
 
 class AbstractStrategy(ABC):
-    def __init__(self, datas, item, symbol, profit_stop, stop_loss, tick_size=0, k=60):
+    def __init__(self, datas, item, symbol, profit_stop, stop_loss, tick_size=0, k=1):
         self.redis = get_redis_connection()
-        self.interval = k // 60 # Convert to "minutes"
         self.item = item
         self.data = datas
         self.log = get_module_logger(f"strategy/{self.item['strategy']}")
@@ -20,6 +19,7 @@ class AbstractStrategy(ABC):
 
         self.symbol = symbol
         self.params = item['params']
+        self.interval = self.params.get('K_time', k)
         self.redis_k_key = ''
         self.insert_data()
 

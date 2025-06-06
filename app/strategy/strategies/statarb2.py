@@ -5,8 +5,8 @@ from datetime import datetime, time
 import json
 
 class Statarb2(AbstractStrategy):
-    def __init__(self, datas, item, symbol, k=300):
-        super().__init__(datas, item, symbol, 0, ['stop_ratio1', 'stop_ratio2'], k=k)
+    def __init__(self, datas, item, symbol):
+        super().__init__(datas, item, symbol, 0, ['stop_ratio1', 'stop_ratio2'])
         self.code_mapping = {'FXFR1': 'A', 'ZFFR1': 'B'}
         self.current_position1 = None
         self.current_position2 = None
@@ -432,47 +432,48 @@ class Statarb2(AbstractStrategy):
             pl1 = round(((origin_price1 - price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))), 2)
             pl2 = round(((price2 - origin_price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))), 2)
             
-            if self.force_close(data_time, trading_periods): # 判斷是否超時平倉
-                self.log.info(f"當前商品A(MXFR)已經超時要平倉, 止盈:{take_profit1}, 止損:{stop_loss1}, 原始價格:{origin_price1}, 當前價格:{price1}")
-                self.publish_order(-4, **{
-                    'code': code1,
-                    'ts': ts1,
-                    'current_price': price1,
-                    'title': '空倉超時平倉通知(尚未下單)',
-                    'description': f"{self.split_code_to_str(self.item['code'])} 空倉 {code1} 買回",
-                    'pl': pl1,
-                    'pl_total': pl1 + pl2,
-                    'profit': take_profit1,
-                    'loss': stop_loss1,
-                    'comm': self.params['commission1'],
-                    'tax': self.params['tax1'],
-                    'tick_size': self.params['tick_size1'],
-                    'share_per_trade': self.params['share_per_trade1'],
-                    'capital': capital1
-                })
-                
-                self.log.info(f"當前商品B(TMFR)已超時要平倉, 止盈:{take_profit2}, 止損:{stop_loss2}, 原始價格:{origin_price2}, 當前價格:{price2}")
-                self.publish_order(4, **{
-                    'code': code2,
-                    'ts': ts2,
-                    'current_price': price2,
-                    'title': '多倉超時平倉通知(尚未下單)',
-                    'description': f"{self.split_code_to_str(self.item['code'])} 多倉 {code2} 賣出",
-                    'pl': pl2,
-                    'pl_total': pl1 + pl2,
-                    'profit': take_profit2,
-                    'loss': stop_loss2,
-                    'comm': self.params['commission2'],
-                    'tax': self.params['tax2'],
-                    'tick_size': self.params['tick_size2'],
-                    'share_per_trade': self.params['share_per_trade2'],
-                    'capital': capital2
-                })
-                
-                # 等待下一次更新時間後才可再進場
-                super().save_to_redis(f"flag_{code1}_{self.item['strategy']}", {'flag': False}, type='set')
-                super().save_to_redis(f"flag_{code2}_{self.item['strategy']}", {'flag': False}, type='set')
-                return self.order
+            if self.params['force_stop']: # 判斷是否超時平倉
+                if self.force_close(data_time, trading_periods):
+                    self.log.info(f"當前商品A(MXFR)已經超時要平倉, 止盈:{take_profit1}, 止損:{stop_loss1}, 原始價格:{origin_price1}, 當前價格:{price1}")
+                    self.publish_order(-4, **{
+                        'code': code1,
+                        'ts': ts1,
+                        'current_price': price1,
+                        'title': '空倉超時平倉通知(尚未下單)',
+                        'description': f"{self.split_code_to_str(self.item['code'])} 空倉 {code1} 買回",
+                        'pl': pl1,
+                        'pl_total': pl1 + pl2,
+                        'profit': take_profit1,
+                        'loss': stop_loss1,
+                        'comm': self.params['commission1'],
+                        'tax': self.params['tax1'],
+                        'tick_size': self.params['tick_size1'],
+                        'share_per_trade': self.params['share_per_trade1'],
+                        'capital': capital1
+                    })
+
+                    self.log.info(f"當前商品B(TMFR)已超時要平倉, 止盈:{take_profit2}, 止損:{stop_loss2}, 原始價格:{origin_price2}, 當前價格:{price2}")
+                    self.publish_order(4, **{
+                        'code': code2,
+                        'ts': ts2,
+                        'current_price': price2,
+                        'title': '多倉超時平倉通知(尚未下單)',
+                        'description': f"{self.split_code_to_str(self.item['code'])} 多倉 {code2} 賣出",
+                        'pl': pl2,
+                        'pl_total': pl1 + pl2,
+                        'profit': take_profit2,
+                        'loss': stop_loss2,
+                        'comm': self.params['commission2'],
+                        'tax': self.params['tax2'],
+                        'tick_size': self.params['tick_size2'],
+                        'share_per_trade': self.params['share_per_trade2'],
+                        'capital': capital2
+                    })
+
+                    # 等待下一次更新時間後才可再進場
+                    super().save_to_redis(f"flag_{code1}_{self.item['strategy']}", {'flag': False}, type='set')
+                    super().save_to_redis(f"flag_{code2}_{self.item['strategy']}", {'flag': False}, type='set')
+                    return self.order
 
             if price1 > stop_loss1 or price2 < stop_loss2: # 判斷是否有止損
                 if price1 > stop_loss1: self.log.info("當前A商品(MXFR)止損")
@@ -562,47 +563,48 @@ class Statarb2(AbstractStrategy):
             pl1 = round(((price1 - origin_price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))), 2)
             pl2 = round(((origin_price2 - price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))), 2)
 
-            if self.force_close(data_time, trading_periods): # 判斷是否超時平倉
-                self.log.info(f"當前商品A(MXFR)已經超時要平倉, 止盈:{take_profit1}, 止損:{stop_loss1}, 原始價格:{origin_price1}, 當前價格:{price1}")
-                self.publish_order(4, **{
-                    'code': code1,
-                    'ts': ts1,
-                    'current_price': price1,
-                    'title': '空倉超時平倉通知(尚未下單)',
-                    'description': f"{self.split_code_to_str(self.item['code'])} 空倉 {code1} 買回",
-                    'pl': pl1,
-                    'pl_total': pl1 + pl2,
-                    'profit': take_profit1,
-                    'loss': stop_loss1,
-                    'comm': self.params['commission1'],
-                    'tax': self.params['tax1'],
-                    'tick_size': self.params['tick_size1'],
-                    'share_per_trade': self.params['share_per_trade1'],
-                    'capital': capital1
-                })
-                
-                self.log.info(f"當前商品B(TMFR)已超時要平倉, 止盈:{take_profit2}, 止損:{stop_loss2}, 原始價格:{origin_price2}, 當前價格:{price2}")
-                self.publish_order(-4, **{
-                    'code': code2,
-                    'ts': ts2,
-                    'current_price': price2,
-                    'title': '多倉超時平倉通知(尚未下單)',
-                    'description': f"{self.split_code_to_str(self.item['code'])} 多倉 {code2} 賣出",
-                    'pl': pl2,
-                    'pl_total': pl1 + pl2,
-                    'profit': take_profit2,
-                    'loss': stop_loss2,
-                    'comm': self.params['commission2'],
-                    'tax': self.params['tax2'],
-                    'tick_size': self.params['tick_size2'],
-                    'share_per_trade': self.params['share_per_trade2'],
-                    'capital': capital2
-                })
-                
-                # 等待下一次更新時間後才可再進場
-                super().save_to_redis(f"flag_{code1}_{self.item['strategy']}", {'flag': False}, type='set')
-                super().save_to_redis(f"flag_{code2}_{self.item['strategy']}", {'flag': False}, type='set')
-                return self.order
+            if self.params['force_stop']: # 判斷是否超時平倉
+                if self.force_close(data_time, trading_periods): 
+                    self.log.info(f"當前商品A(MXFR)已經超時要平倉, 止盈:{take_profit1}, 止損:{stop_loss1}, 原始價格:{origin_price1}, 當前價格:{price1}")
+                    self.publish_order(4, **{
+                        'code': code1,
+                        'ts': ts1,
+                        'current_price': price1,
+                        'title': '空倉超時平倉通知(尚未下單)',
+                        'description': f"{self.split_code_to_str(self.item['code'])} 空倉 {code1} 買回",
+                        'pl': pl1,
+                        'pl_total': pl1 + pl2,
+                        'profit': take_profit1,
+                        'loss': stop_loss1,
+                        'comm': self.params['commission1'],
+                        'tax': self.params['tax1'],
+                        'tick_size': self.params['tick_size1'],
+                        'share_per_trade': self.params['share_per_trade1'],
+                        'capital': capital1
+                    })
+
+                    self.log.info(f"當前商品B(TMFR)已超時要平倉, 止盈:{take_profit2}, 止損:{stop_loss2}, 原始價格:{origin_price2}, 當前價格:{price2}")
+                    self.publish_order(-4, **{
+                        'code': code2,
+                        'ts': ts2,
+                        'current_price': price2,
+                        'title': '多倉超時平倉通知(尚未下單)',
+                        'description': f"{self.split_code_to_str(self.item['code'])} 多倉 {code2} 賣出",
+                        'pl': pl2,
+                        'pl_total': pl1 + pl2,
+                        'profit': take_profit2,
+                        'loss': stop_loss2,
+                        'comm': self.params['commission2'],
+                        'tax': self.params['tax2'],
+                        'tick_size': self.params['tick_size2'],
+                        'share_per_trade': self.params['share_per_trade2'],
+                        'capital': capital2
+                    })
+
+                    # 等待下一次更新時間後才可再進場
+                    super().save_to_redis(f"flag_{code1}_{self.item['strategy']}", {'flag': False}, type='set')
+                    super().save_to_redis(f"flag_{code2}_{self.item['strategy']}", {'flag': False}, type='set')
+                    return self.order
             
             if price1 < stop_loss1 or price2 > stop_loss2: # 判斷是否有止損
                 if price1 < stop_loss1: self.log.info("當前A商品(MXFR)止損")
