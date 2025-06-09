@@ -22,7 +22,8 @@ class AbstractStrategy(ABC):
         self.interval = self.params.get('K_time', k)
         self.redis_k_key = ''
         self.insert_data()
-
+        self.last_data = self.get_last_ts_data()
+        
         # 處理 profit_stop 參數
         if profit_stop == 0:
             self.profit_stop = 0
@@ -43,7 +44,7 @@ class AbstractStrategy(ABC):
         if tick_size == 0:
             self.tick_size = 0
         elif isinstance(tick_size, list):
-            # 检查列表中是否有字典, 做股期或配對交易可以使用(list of dict => [{tick_size: tick_size1, levearge: levearge1, symbol: 股票or期貨, ...}]) => 可能是股票期貨, 或者有槓桿的商品
+            # 检查列表中是否有字典, 做股期或配對交易可以使用(list of dict => [{tick_size: tick_size1, levearge: levearge1, symbol: 股票or期貨, ...}]) => 可能是股票期貨fstock, 或者有槓桿的商品
             has_dict = any(isinstance(d, dict) for d in tick_size)
             
             if not has_dict: # 單純獲得tick_size列表 [tick_size1, tick_size2, ...], 將組合出 => {cod1: self.params['tick_size1'], code2: self.params['tick_size2']...}
@@ -57,12 +58,15 @@ class AbstractStrategy(ABC):
                         'symbol': d.get('symbol', 'index') # 添加要交易的商品, 默認預設為index, 如果配對交易其中一邊為股票則添加stock
                     } for code, d in zip(self.item['code'], tick_size)
                 }
+                
+            # 進行價格tick判斷
+            self.get_tick_price(self.tick_size)
+            
         else:
             self.tick_size = self.params[tick_size]
 
         self.calculate = []
         self.order = [] # 組裝訂單
-        self.last_data = self.get_last_ts_data()
         self.position_controls = load_position_controls()  # 加載所有艙位控制
         self.position_redis_key = f"{self.symbol}:{self.item['strategy']}:{self.process_redis_key()}"
         self.analyze_redis_key = f"{self.symbol}:{self.item['strategy']}:{self.process_redis_key()}_analyze"
@@ -88,6 +92,47 @@ class AbstractStrategy(ABC):
             processed_key = "_".join(self.item['code'])  # 多元素用下劃線連接，例如 "MXFR1_TMFR1"
 
         return processed_key
+
+    def get_tick_price(self, tick_dict):
+        """
+        根據標的股票價格，返回對應的股票期貨最小升降單位（tick size）。
+
+        Args:
+            price (float or int): 標的股票價格
+
+        Returns:
+            float: 最小升降單位（tick size）
+        """
+        if self.params['trade_type'] not in ['fstock', 'stock']:
+            return
+        
+        for key in tick_dict:
+            code_latest_close = float(self.last_data[key]['tick'][0]['close'])
+            tick_price = 0
+            if code_latest_close < 10:
+                tick_price = 0.01
+            elif 10 <= code_latest_close < 50:
+                tick_price = 0.05
+            elif 50 <= code_latest_close < 100:
+                tick_price = 0.1
+            elif 100 <= code_latest_close < 500:
+                tick_price = 0.5
+            elif 500 <= code_latest_close < 1000:
+                tick_price = 1.0
+            else:  # price >= 1000
+                tick_price = 5.0
+            
+            # 判斷 tick_dict 的格式
+            if isinstance(tick_dict[key], dict):
+                # 第二種格式：{code1: {'tick_size': tick_size1, 'levearge': ...}, {'tick_size': tick_size2, 'levearge': ...} ...}
+                tick_dict[key]['tick_size'] = tick_price
+            else:
+                # 第一種格式：{code1: tick_size1, code2: tick_size2, ...}
+                tick_dict[key] = tick_price
+        
+        self.tick_size = tick_dict
+        self.log.info(f"當前交易類行為: {self.params['trade_type']}, 當前tick_size為: {self.tick_size}")
+        return
 
     def insert_data(self):
         redis_k_keys = {}  # 用來收集每個 code 對應的 redis_k_key
