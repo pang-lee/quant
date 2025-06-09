@@ -1,0 +1,102 @@
+需要的檢查:
+1. 
+2. 
+3. 
+
+---------- 參考資料 ----------
+1. 在check_signal中, 從Redis_stream取出資料後, 傳遞的資料格式為如下:
+# 示例數據（動態設置 code）
+tick_data = [
+    {'ts': '2025-03-24 10:15:35', 'code': code, 'open': '166.5', 'close': '164.5', 'high': '167', 'low': '164', 'volume': '1', 'total_volume': '11410', 'amount': '164500', 'total_amount': '1888267000', 'tick_type': '1', 'chg_type': '4', 'price_chg': '-0.5', 'percent_chg': '-0.3', 'simtrade': '0', 'suspend': '0', 'intraday_odd': '0', 'bid_side_total_vol': '4061', 'ask_side_total_vol': '7349', 'bid_side_total_cnt': '914', 'ask_side_total_cnt': '1547', 'closing_oddlot_shares': '0', 'fixed_trade_vol': '0'},
+    {'ts': '2025-03-24 10:15:34', 'code': code, 'open': '166.5', 'close': '164.5', 'high': '167', 'low': '164', 'volume': '1', 'total_volume': '11410', 'amount': '164500', 'total_amount': '1888267000', 'tick_type': '1', 'chg_type': '4', 'price_chg': '-0.5', 'percent_chg': '-0.3', 'simtrade': '0', 'suspend': '0', 'intraday_odd': '0', 'bid_side_total_vol': '4061', 'ask_side_total_vol': '7349', 'bid_side_total_cnt': '914', 'ask_side_total_cnt': '1547', 'closing_oddlot_shares': '0', 'fixed_trade_vol': '0'}
+]
+
+bidask_data = [
+    {'ts': '2025-03-24 10:15:35', 'code': code, 'exchange': 'Exchange.TSE', 'bid_prices': '["164", "163.5", "163", "162.5", "162"]', 'bid_volumes': '[3231, 3126, 5455, 4384, 4499]', 'diff_bid_vols': '[0, 0, 0, 0, 0]', 'ask_prices': '["164.5", "165", "165.5", "166", "166.5"]', 'ask_volumes': '[505, 698, 732, 887, 931]', 'diff_ask_vols': '[-1, 0, 0, 0, 0]', 'suspend': '0', 'simtrade': '0', 'intraday_odd': '0'},
+    {'ts': '2025-03-24 10:15:36', 'code': code, 'exchange': 'Exchange.TSE', 'bid_prices': '["164", "163.5", "163", "162.5", "162"]', 'bid_volumes': '[3231, 3126, 5455, 4384, 4499]', 'diff_bid_vols': '[0, 0, 0, 0, 0]', 'ask_prices': '["164.5", "165", "165.5", "166", "166.5"]', 'ask_volumes': '[505, 698, 732, 887, 931]', 'diff_ask_vols': '[-1, 0, 0, 0, 0]', 'suspend': '0', 'simtrade': '0', 'intraday_odd': '0'}
+]
+
+拼接後會如下(多筆會有多個key, value組合):
+[
+    {
+        "ts": "2025-03-24 10:15:34",
+        "tick": [
+            {
+                "ts": "2025-03-24 10:15:34",
+                "code": "2317",
+                "close": "164.5",
+                "high": "167",
+                "low": "164",
+                "volume": 1,
+                "bid_price": ["4061"],
+                "bid_volume": 4061,
+                "ask_price": ["7349"],
+                "ask_volume": 7349,
+                "tick_type": {
+                    "outer_trades": 0,
+                    "inner_trades": 0,
+                    "dominant": "均衡"
+                }
+            }
+        ],
+        "bidask": []
+    },
+    {
+        "ts": "2025-03-24 10:15:35",
+        "tick": [
+            {
+                "ts": "2025-03-24 10:15:35",
+                "code": "2317",
+                "close": "164.5",
+                "high": "167",
+                "low": "164",
+                "volume": 1,
+                "bid_price": ["4061"],
+                "bid_volume": 4061,
+                "ask_price": ["7349"],
+                "ask_volume": 7349,
+                "tick_type": {
+                    "outer_trades": 0,
+                    "inner_trades": 0,
+                    "dominant": "均衡"
+                }
+            }
+        ],
+        "bidask": [
+            {
+                "ts": "2025-03-24 10:15:35",
+                "code": "2317",
+                "exchange": "Exchange.TSE",
+                "bid_prices": ["164", "163.5", "163", "162.5", "162"],
+                "bid_volumes": [3231, 3126, 5455, 4384, 4499],
+                "diff_bid_vols": [0, 0, 0, 0, 0],
+                "ask_prices": ["164.5", "165", "165.5", "166", "166.5"],
+                "ask_volumes": [505, 698, 732, 887, 931],
+                "diff_ask_vols": [-1, 0, 0, 0, 0],
+                "suspend": "0",
+                "simtrade": "0",
+                "intraday_odd": "0"
+            }
+        ]
+    },
+    {
+        "ts": "2025-03-24 10:15:36",
+        "tick": [],
+        "bidask": [
+            {
+                "ts": "2025-03-24 10:15:36",
+                "code": "2317",
+                "exchange": "Exchange.TSE",
+                "bid_prices": ["164", "163.5", "163", "162.5", "162"],
+                "bid_volumes": [3231, 3126, 5455, 4384, 4499],
+                "diff_bid_vols": [0, 0, 0, 0, 0],
+                "ask_prices": ["164.5", "165", "165.5", "166", "166.5"],
+                "ask_volumes": [505, 698, 732, 887, 931],
+                "diff_ask_vols": [-1, 0, 0, 0, 0],
+                "suspend": "0",
+                "simtrade": "0",
+                "intraday_odd": "0"
+            }
+        ]
+    }
+]

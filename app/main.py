@@ -1,5 +1,5 @@
 import asyncio, json, datetime, pytz
-from datetime import datetime
+from datetime import datetime, time
 from collections import defaultdict
 from data import DatasourceFactory
 from strategy import Strategy
@@ -171,9 +171,13 @@ def is_in_stop_time(current_time, stop_time_ranges):
 
 # 判斷是否需要 night 過濾（下午 2:00 後）
 def night_filter(current_time):
-    afternoon_2pm = datetime.strptime("14:00", "%H:%M").time()
-    apply_filter = current_time > afternoon_2pm
-    return apply_filter
+    afternoon_2pm = time(14, 0)  # 下午 2:00
+    morning_6am = time(6, 0)    # 清晨 6:00
+    
+    # 檢查是否在晚上範圍（當天 14:00 到隔天 06:00）
+    if current_time >= afternoon_2pm or current_time < morning_6am:
+        return True
+    return False
 
 # 主程序(遍歷商品列表並提交訊號計算和下單任務)
 async def process_item(items, queue, process_pool, thread_pool, brokers, p_lock, broker_lock, order_status, strategy_lock, pending_task, log):

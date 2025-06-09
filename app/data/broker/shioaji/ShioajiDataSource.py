@@ -1,5 +1,5 @@
 import json, pytz
-from datetime import datetime
+from datetime import datetime, time
 from data.broker.abc.AbstractDatasource import AbstractDatasource
 from shioaji import TickFOPv1, TickSTKv1, Exchange, BidAskFOPv1, BidAskSTKv1
 from decimal import Decimal
@@ -42,9 +42,13 @@ class ShioajiDataSource(AbstractDatasource):
     def night_filter(self):
         # 獲取當前時間（考慮時區）
         current_time = datetime.now(pytz.timezone("Asia/Taipei")).time()
-        afternoon_2pm = datetime.strptime("14:00", "%H:%M").time()
-        apply_filter = current_time > afternoon_2pm
-        return apply_filter
+        afternoon_2pm = time(14, 0)  # 下午 2:00
+        morning_6am = time(6, 0)    # 清晨 6:00
+    
+        # 檢查是否在晚上範圍（當天 14:00 到隔天 06:00）
+        if current_time >= afternoon_2pm or current_time < morning_6am:
+            return True
+        return False
 
     def fetch_market_data(self, product):
         if not self.subscribe_product:

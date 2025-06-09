@@ -1,4 +1,6 @@
 from .abc.AbstractCalculation import AbstractCalculation
+from utils.technical_indicator.bias import calculate_bias_ratio
+from utils.technical_indicator.diff import shift_log, diff_change, diff_change_shift
 from utils.log import get_module_logger
 
 class Zscore(AbstractCalculation):
@@ -8,11 +10,32 @@ class Zscore(AbstractCalculation):
         
     def execute(self):
         return self.calculation()
-        
-    def calculation(self):
-        return self.generate_signal(self.zscore(self.spread_sereis()))
 
-    def spread_sereis(self):
+    def calculation(self):
+        if self.params['statarb_type'] == 'beta':
+            return self.generate_signal(self.zscore(self.beta_sereis()))
+        elif self.params['statarb_type'] == 'bias':
+            return self.generate_signal(self.zscore(self.bias_sereis(self.params['use_ratio'])))
+        elif self.params['statarb_type'] == 'shift_log':
+            return self.generate_signal(self.zscore(self.shift_log_sereis(self.params['use_log'])))
+        elif self.params['statarb_type'] == 'diff_change_shift':
+            return self.generate_signal(self.zscore(self.diff_change_shift_sereis()))
+        elif self.params['statarb_type'] == 'diff_change':
+            return self.generate_signal(self.zscore(self.diff_change_sereis(self.params['use_pct'])))
+    
+    def bias_sereis(self, ratio):
+        return calculate_bias_ratio(self.data['A'], self.data['B'], self.params['bias_period'], use_ratio=ratio)
+
+    def diff_change_sereis(self, pct):
+        return diff_change(self.data['A'], self.data['B'], pct=pct)
+
+    def diff_change_shift_sereis(self):
+        return diff_change_shift(self.data['A'], self.data['B'])
+    
+    def shift_log_sereis(self, log):
+        return shift_log(self.data['A'], self.data['B'], log=log)
+
+    def beta_sereis(self):
         self.log.info(f"開始計算\n: {self.data}")
         
         if 'A' not in self.data.columns or 'B' not in self.data.columns:

@@ -1,6 +1,6 @@
 import os, json, redis, pytz, ast
 import pandas as pd
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, time
 from pathlib import Path
 from utils.log import get_module_logger
 from utils.k import convert_ohlcv
@@ -30,9 +30,13 @@ def get_redis_connection():
 
 # 判斷是否需要 night 過濾（下午 2:00 後）
 def night_filter(current_time):
-    afternoon_2pm = datetime.strptime("14:00", "%H:%M").time()
-    apply_filter = current_time > afternoon_2pm
-    return apply_filter
+    afternoon_2pm = time(14, 0)  # 下午 2:00
+    morning_6am = time(6, 0)    # 清晨 6:00
+    
+    # 檢查是否在晚上範圍（當天 14:00 到隔天 06:00）
+    if current_time >= afternoon_2pm or current_time < morning_6am:
+        return True
+    return False
 
 def set_redis_consumer(item, redis_cli=None):
     if redis_cli is None:

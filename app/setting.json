@@ -29,6 +29,7 @@
                 ],
                 "params": {
                     "cross_day": true,
+                    "K_time": 60,
                     "price_diff": 30,
                     "vpfr_oscillation": 0.3,
                     "rsv_low": 20,
@@ -47,7 +48,6 @@
                     "oscillation_profit_ratio1": 50,
                     "position_type": "dynamic",
                     "commission1": 15,
-                    "K_time": 60,
                     "tax1": 2e-05,
                     "capital": 100000,
                     "broker": "shioaji",
@@ -71,9 +71,12 @@
                     "zscore"
                 ],
                 "params": {
-                    "statarb_type": "beta",
+                    "K_time": 45,
+                    "statarb_type": "bias",
                     "cross_day": true,
-                    "z_window": 8,
+                    "bias_period": 5,
+                    "use_ratio": true,
+                    "z_window": 20,
                     "threshold": 2,
                     "commission2": 15,
                     "tax2": 2e-05,
@@ -89,14 +92,12 @@
                     "min_margin1": 58750,
                     "stop_ratio2": 250,
                     "stop_ratio1": 50,
-                    "window_trading_days": 3,
-                    "beta": 0.9983086747832665,
-                    "K_time": 30,
+                    "trade_type": "index",
                     "position_type": "statarb",
                     "broker": "shioaji",
                     "datasource": "shioaji",
                     "tz": "Asia/Taipei",
-                    "force_stop": true,
+                    "force_stop": false,
                     "night": true,
                     "stop_time": [
                         "13:45-14:55",
@@ -117,9 +118,9 @@
                     "statarb_type": "beta",
                     "cross_day": true,
                     "indicator": {
-                        "rsi": 12
+                        "rsi": 7
                     },
-                    "k_lookback": 65,
+                    "k_lookback": 10,
                     "z_window": 10,
                     "threshold": 2,
                     "commission2": 15,
@@ -136,14 +137,157 @@
                     "min_margin1": 115000,
                     "stop_ratio2": 150,
                     "stop_ratio1": 50,
+                    "trade_type": "index",
                     "window_trading_days": 3,
-                    "beta": 0.6762666083404105,
+                    "beta": 0.7274099014240428,
                     "K_time": 5,
                     "position_type": "statarb",
                     "broker": "shioaji",
                     "datasource": "shioaji",
                     "tz": "Asia/Taipei",
                     "force_stop": false,
+                    "night": false,
+                    "stop_time": [
+                        "13:45-14:55",
+                        "05:00-08:40"
+                    ]
+                }
+            },
+            {
+                "code": [
+                    "QXFR1",
+                    "DAFR1"
+                ],
+                "strategy": "statarb3",
+                "calculation": [
+                    "zscore"
+                ],
+                "params": {
+                    "statarb_type": "diff_change",
+                    "cross_day": true,
+                    "use_pct": true,
+                    "K_time": 5,
+                    "z_window": 20,
+                    "threshold": 2,
+                    "commission1": 50,
+                    "tax1": 0.00002,
+                    "share_per_trade1": 1,
+                    "tick_size1": 0.1,
+                    "levearge1": 2000,
+                    "commission2": 50,
+                    "tax2": 0.00002,
+                    "share_per_trade2": 1,
+                    "tick_size2": 0.05,
+                    "levearge2": 2000,
+                    "capital1": 60000,
+                    "capital2": 40000,
+                    "min_margin1": 41310,
+                    "min_margin2": 31995,
+                    "stop_ratio1": 0.025,
+                    "stop_ratio2": 0.03,
+                    "position_type": "statarb",
+                    "broker": "shioaji",
+                    "datasource": "shioaji",
+                    "tz": "Asia/Taipei",
+                    "force_stop": false,
+                    "trade_type": "fstock",
+                    "night": false,
+                    "stop_time": [
+                        "13:45-14:55",
+                        "05:00-08:40"
+                    ]
+                }
+            },
+            {
+                "code": [
+                    "CKFR1",
+                    "DDFR1"
+                ],
+                "strategy": "statarb4",
+                "calculation": [
+                    "zscore"
+                ],
+                "params": {
+                    "statarb_type": "shift_log",
+                    "cross_day": true,
+                    "use_log": false,
+                    "indicator": {
+                        "rsi": 6
+                    },
+                    "K_time": 5,
+                    "z_window": 15,
+                    "threshold": 2,
+                    "commission1": 50,
+                    "tax1": 0.00002,
+                    "share_per_trade1": 1,
+                    "tick_size1": 0.1,
+                    "levearge1": 2000,
+                    "commission2": 50,
+                    "tax2": 0.00002,
+                    "share_per_trade2": 1,
+                    "tick_size2": 0.05,
+                    "levearge2": 2000,
+                    "capital1": 40000,
+                    "capital2": 20000,
+                    "min_margin1": 24000,
+                    "min_margin2": 4000,
+                    "stop_ratio1": 0.025,
+                    "stop_ratio2": 0.025,
+                    "position_type": "statarb",
+                    "broker": "shioaji",
+                    "datasource": "shioaji",
+                    "tz": "Asia/Taipei",
+                    "force_stop": false,
+                    "trade_type": "fstock",
+                    "night": false,
+                    "stop_time": [
+                        "13:45-14:55",
+                        "05:00-08:40"
+                    ]
+                }
+            },
+            {
+                "code": [
+                    "CEFR1",
+                    "CKFR1"
+                ],
+                "strategy": "statarb5",
+                "calculation": [
+                    "zscore"
+                ],
+                "params": {
+                    "statarb_type": "shift_log",
+                    "cross_day": true,
+                    "use_log": true,
+                    "indicator": {
+                        "ema": 6
+                    },
+                    "ema_period": 5,
+                    "K_time": 5,
+                    "z_window": 15,
+                    "threshold": 2,
+                    "commission1": 50,
+                    "tax1": 0.00002,
+                    "share_per_trade1": 1,
+                    "tick_size1": 0.05,
+                    "levearge1": 2000,
+                    "commission2": 50,
+                    "tax2": 0.00002,
+                    "share_per_trade2": 1,
+                    "tick_size2": 0.05,
+                    "levearge2": 2000,
+                    "capital1": 35000,
+                    "capital2": 35000,
+                    "min_margin1": 24000,
+                    "min_margin2": 20000,
+                    "stop_ratio1": 0.025,
+                    "stop_ratio2": 0.025,
+                    "position_type": "statarb",
+                    "broker": "shioaji",
+                    "datasource": "shioaji",
+                    "tz": "Asia/Taipei",
+                    "force_stop": false,
+                    "trade_type": "fstock",
                     "night": false,
                     "stop_time": [
                         "13:45-14:55",
@@ -178,8 +322,8 @@
                     "tick_size1": 10,
                     "K_time": 1,
                     "capital1": 20000,
-                    "ob_top": 21086.0,
-                    "ob_bottom": 20936.0,
+                    "ob_top": 21049.0,
+                    "ob_bottom": 20790.0,
                     "direction": 1,
                     "monitor": true,
                     "night": true,

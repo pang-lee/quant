@@ -1,9 +1,10 @@
 /app/.env
 /app/log
 /app/shioaji.log
-/reference
 /app/data/preserve
 /redis/redis-node-*/data/
 /redis/redisinsight_data/
 /standalone/redis/redis_data
 /shioaji.log
+/backtest/index_data
+/backtest/.env
