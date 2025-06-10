@@ -211,6 +211,7 @@
                     "statarb_type": "shift_log",
                     "cross_day": true,
                     "use_log": false,
+                    "k_lookback": 10,
                     "indicator": {
                         "rsi": 6
                     },
@@ -259,9 +260,7 @@
                     "statarb_type": "shift_log",
                     "cross_day": true,
                     "use_log": true,
-                    "indicator": {
-                        "ema": 6
-                    },
+                    "k_lookback": 10,
                     "ema_period": 5,
                     "K_time": 5,
                     "z_window": 15,

@@ -420,8 +420,8 @@ class Statarb1(AbstractStrategy):
         if position1 < 0 and position2 > 0: # 空A多B
             self.log.info("當前空A(MXFR)多B(TMFR)")
             
-            pl1 = round(((origin_price1 - price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))), 2)
-            pl2 = round(((price2 - origin_price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))), 2)
+            pl1 = round(((origin_price1 - price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))) * self.params['share_per_trade1'], 2)
+            pl2 = round(((price2 - origin_price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))) * self.params['share_per_trade2'], 2)
             
             if self.params['force_stop']: # 判斷是否超時平倉
                 if self.force_close(data_time, trading_periods): 
@@ -551,8 +551,8 @@ class Statarb1(AbstractStrategy):
         elif position1 > 0 and position2 < 0: # 多A空B
             self.log.info("當前多A(MXFR)空B(TMFR)")
             
-            pl1 = round(((price1 - origin_price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))), 2)
-            pl2 = round(((origin_price2 - price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))), 2)
+            pl1 = round(((price1 - origin_price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))) * self.params['share_per_trade1'], 2)
+            pl2 = round(((origin_price2 - price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))) * self.params['share_per_trade2'], 2)
 
             if self.params['force_stop']: # 判斷是否超時平倉
                 if self.force_close(data_time, trading_periods): 

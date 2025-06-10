@@ -1,6 +1,4 @@
 from .abc.AbstractStrategy import AbstractStrategy
-from utils.technical_indicator import rsi
-import pandas as pd
 from datetime import datetime, time
 import json
 
@@ -25,14 +23,13 @@ class Statarb3(AbstractStrategy):
                 self.log.info(f"找不到對應的 redis_k_key: {code}")
                 continue  # 如果找不到對應的 redis_k_key，跳過該 code
             
-            k_amount = self.lrange_of_redis(redis_k_key, -self.params['k_lookback'], -1)
+            k_amount = self.lrange_of_redis(redis_k_key, -self.params['z_window'], -1)
 
-            if len(k_amount) < self.params['k_lookback']:
-                self.log.info(f"當前K棒數量{len(k_amount)}小於{self.params['k_lookback']}")
+            if len(k_amount) < self.params['z_window']:
                 continue
 
             # 只取最近 long_window 根 K 棒
-            recent_k_amount = k_amount[-self.params['k_lookback']:]
+            recent_k_amount = k_amount[-self.params['z_window']:]
             
             # 將 JSON 字串轉換為資料結構
             self.k_data = [json.loads(record) for record in recent_k_amount]
@@ -49,16 +46,10 @@ class Statarb3(AbstractStrategy):
 
             # 依照預設的對應關係將 code 換成 'A' 或 'B'
             mapped_code = self.code_mapping.get(code, code)  # 如果沒有對應關係，保持原代號
+            
             self.k_data = sorted(self.k_data, key=lambda x: datetime.strptime(x['ts'], '%Y-%m-%d %H:%M:%S'))
-            
-            # 將每個 code 對應的資料存儲到字典中，key 為映射後的代號, 計算 RSI
-            rsi_series = rsi(pd.Series([float(record['close']) for record in self.k_data]), self.params['indicator']['rsi'])
-            
-            if rsi_series.count() < self.params['z_window']:
-                self.log.info(f"當前的rsi時間序列資料共: {len(rsi_series)} 筆, 最低要求: {self.params['z_window']} 筆")
-                return
-            
-            df_dict[mapped_code] = rsi_series
+            # 將每個 code 對應的資料存儲到字典中，key 為映射後的代號
+            df_dict[mapped_code] = [float(record['close']) for record in self.k_data]
 
             if super().get_from_redis(f"flag_{code}_{self.item['strategy']}") is None:
                 super().save_to_redis(f"flag_{code}_{self.item['strategy']}", {'flag': True}, type='set')
@@ -81,10 +72,10 @@ class Statarb3(AbstractStrategy):
                     '代號': params.get('code'),
                     '時間': params.get('ts'),
                     "策略": self.item['strategy'],
-                    '當前點數': params.get('current_price'),
+                    '當前金額': params.get('current_price'),
                     '數量': params.get('share_per_trade'),
                     '進場類型': '多',
-                    '止損點數': params.get('stop_ratio'),
+                    '止損金額': params.get('current_price') * (1 - params.get('stop_ratio')),
                     '當前資產': params.get('capital')
                 }
             }
@@ -95,7 +86,7 @@ class Statarb3(AbstractStrategy):
                 price=params.get('current_price'),
                 symbol=self.symbol,
                 broker=self.params['broker'], 
-                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size')},
+                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size'), 'levearge': params.get('levearge'), 'trading_symbol': 'fstock'},
                 capital=params.get('capital')
             )
             
@@ -111,10 +102,10 @@ class Statarb3(AbstractStrategy):
                     '代號': params.get('code'),
                     '時間': params.get('ts'),
                     "策略": self.item['strategy'],
-                    '當前點數': params.get('current_price'),
+                    '當前金額': params.get('current_price'),
                     '數量': params.get('share_per_trade'),
                     '進場類型': '空',
-                    '止損點數': params.get('stop_ratio'),
+                    '止損金額': params.get('current_price') * (1 + params.get('stop_ratio')),
                     '當前資產': params.get('capital')
                 }
             }
@@ -125,7 +116,7 @@ class Statarb3(AbstractStrategy):
                 price=params.get('current_price'),
                 symbol=self.symbol, 
                 broker=self.params['broker'], 
-                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size')},
+                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size'), 'levearge': params.get('levearge'), 'trading_symbol': 'fstock'},
                 capital=params.get('capital')
             )
             
@@ -140,7 +131,7 @@ class Statarb3(AbstractStrategy):
                 'notify_params': {
                     '時間': params.get('ts'),
                     "策略": self.item['strategy'],
-                    '當前點數': params.get('current_price'),
+                    '當前金額': params.get('current_price'),
                     '止盈': params.get('profit'),
                     '止損': params.get('loss'),
                     '數量': params.get('share_per_trade'),
@@ -156,7 +147,7 @@ class Statarb3(AbstractStrategy):
                 price=params.get('current_price'), 
                 symbol=self.symbol, 
                 broker=self.params['broker'], 
-                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size')},
+                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size'), 'levearge': params.get('levearge'), 'trading_symbol': 'fstock'},
                 capital=params.get('capital')
             )
             
@@ -171,7 +162,7 @@ class Statarb3(AbstractStrategy):
                 'notify_params': {
                     '時間': params.get('ts'),
                     "策略": self.item['strategy'],
-                    '當前點數': params.get('current_price'),
+                    '當前金額': params.get('current_price'),
                     '止盈': params.get('profit'),
                     '止損': params.get('loss'),
                     '數量': params.get('share_per_trade'),
@@ -187,7 +178,7 @@ class Statarb3(AbstractStrategy):
                 price=params.get('current_price'), 
                 symbol=self.symbol, 
                 broker=self.params['broker'], 
-                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size')},
+                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size'), 'levearge': params.get('levearge'), 'trading_symbol': 'fstock'},
                 capital=params.get('capital')
             )
             
@@ -202,7 +193,7 @@ class Statarb3(AbstractStrategy):
                 'notify_params': {
                     '時間': params.get('ts'),
                     "策略": self.item['strategy'],
-                    '當前點數': params.get('current_price'),
+                    '當前金額': params.get('current_price'),
                     '原先止盈': params.get('profit'),
                     '原先止損': params.get('loss'),
                     '數量': params.get('share_per_trade'),
@@ -218,7 +209,7 @@ class Statarb3(AbstractStrategy):
                 price=params.get('current_price'),
                 symbol=self.symbol, 
                 broker=self.params['broker'], 
-                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size')},
+                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size'), 'levearge': params.get('levearge'), 'trading_symbol': 'fstock'},
                 capital=params.get('capital')
             )
             
@@ -233,7 +224,7 @@ class Statarb3(AbstractStrategy):
                 'notify_params': {
                     '時間': params.get('ts'),
                     "策略": self.item['strategy'],
-                    '當前點數': params.get('current_price'),
+                    '當前金額': params.get('current_price'),
                     '原先止盈': params.get('profit'),
                     '原先止損': params.get('loss'),
                     '數量': params.get('share_per_trade'),
@@ -249,7 +240,7 @@ class Statarb3(AbstractStrategy):
                 price=params.get('current_price'), 
                 symbol=self.symbol, 
                 broker=self.params['broker'], 
-                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size')},
+                comm_tax={'comm': params.get('comm'), 'tax': params.get('tax'), 'tick_size': params.get('tick_size'), 'levearge': params.get('levearge'), 'trading_symbol': 'fstock'},
                 capital=params.get('capital')
             )
             
@@ -327,11 +318,12 @@ class Statarb3(AbstractStrategy):
                 'code': code1,
                 'ts': ts1,
                 'current_price': price1,
-                'stop_ratio': self.params['stop_ratio1'],
+                'stop_ratio': self.stop_loss.get(code1, self.params['stop_ratio1']),
                 'comm': self.params['commission1'],
                 'tax': self.params['tax1'],
-                'tick_size': self.params['tick_size1'],
+                'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
                 'share_per_trade': self.params['share_per_trade1'],
+                'levearge': self.params['levearge'],
                 'capital': capital1
             })
             
@@ -339,11 +331,12 @@ class Statarb3(AbstractStrategy):
                 'code': code2,
                 'ts': ts2,
                 'current_price': price2,
-                'stop_ratio': self.params['stop_ratio2'],
+                'stop_ratio': self.stop_loss.get(code1, self.params['stop_ratio2']),
                 'comm': self.params['commission2'],
                 'tax': self.params['tax2'],
-                'tick_size': self.params['tick_size2'],
+                'tick_size': self.tick_size.get(code1, self.params['tick_size2'])['tick_size'],
                 'share_per_trade': self.params['share_per_trade2'],
+                'levearge': self.params['levearge'],
                 'capital': capital2
             })
 
@@ -355,11 +348,12 @@ class Statarb3(AbstractStrategy):
                 'code': code1,
                 'ts': ts1,
                 'current_price': price1,
-                'stop_ratio': self.params['stop_ratio1'],
+                'stop_ratio': self.stop_loss.get(code1, self.params['stop_ratio1']),
                 'comm': self.params['commission1'],
                 'tax': self.params['tax1'],
-                'tick_size': self.params['tick_size1'],
+                'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
                 'share_per_trade': self.params['share_per_trade1'],
+                'levearge': self.params['levearge'],
                 'capital': capital1
             })
             
@@ -367,11 +361,12 @@ class Statarb3(AbstractStrategy):
                 'code': code2,
                 'ts': ts2,
                 'current_price': price2,
-                'stop_ratio': self.params['stop_ratio2'],
+                'stop_ratio': self.stop_loss.get(code2, self.params['stop_ratio2']),
                 'comm': self.params['commission2'],
                 'tax': self.params['tax2'],
-                'tick_size': self.params['tick_size2'],
+                'tick_size': self.tick_size.get(code2, self.params['tick_size2'])['tick_size'],
                 'share_per_trade': self.params['share_per_trade2'],
+                'levearge': self.params['levearge2'],
                 'capital': capital2
             })
 
@@ -429,8 +424,13 @@ class Statarb3(AbstractStrategy):
         if position1 < 0 and position2 > 0: # 空A多B
             self.log.info("當前空A(MXFR)多B(TMFR)")
             
-            pl1 = round(((origin_price1 - price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))), 2)
-            pl2 = round(((price2 - origin_price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))), 2)
+            if self.params['trade_type'] == 'fstock':
+                pl1 = round(((origin_price1 - price1) * self.params['levearge1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))) * self.params['share_per_trade1'], 2)
+                pl2 = round(((price2 - origin_price2) * self.params['levearge2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))) * self.params['share_per_trade2'], 2)
+            
+            elif self.params['trade_type'] == 'index':
+                pl1 = round(((origin_price1 - price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))) * self.params['share_per_trade1'], 2)
+                pl2 = round(((price2 - origin_price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))) * self.params['share_per_trade2'], 2)
             
             if self.params['force_stop']: # 判斷是否超時平倉
                 if self.force_close(data_time, trading_periods):
@@ -447,7 +447,8 @@ class Statarb3(AbstractStrategy):
                         'loss': stop_loss1,
                         'comm': self.params['commission1'],
                         'tax': self.params['tax1'],
-                        'tick_size': self.params['tick_size1'],
+                        'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
+                        'levearge': self.params['levearge1'],
                         'share_per_trade': self.params['share_per_trade1'],
                         'capital': capital1
                     })
@@ -465,8 +466,9 @@ class Statarb3(AbstractStrategy):
                         'loss': stop_loss2,
                         'comm': self.params['commission2'],
                         'tax': self.params['tax2'],
-                        'tick_size': self.params['tick_size2'],
+                        'tick_size': self.tick_size.get(code2, self.params['tick_size2'])['tick_size'],
                         'share_per_trade': self.params['share_per_trade2'],
+                        'levearge': self.params['levearge2'],
                         'capital': capital2
                     })
 
@@ -490,8 +492,9 @@ class Statarb3(AbstractStrategy):
                     'loss': stop_loss1,
                     'comm': self.params['commission1'],
                     'tax': self.params['tax1'],
-                    'tick_size': self.params['tick_size1'],
+                    'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
                     'share_per_trade': self.params['share_per_trade1'],
+                    'levearge': self.params['levearge1'],
                     'capital': capital1
                 })
                 
@@ -506,8 +509,9 @@ class Statarb3(AbstractStrategy):
                     'loss': stop_loss2,
                     'comm': self.params['commission2'],
                     'tax': self.params['tax2'],
-                    'tick_size': self.params['tick_size2'],
+                    'tick_size': self.tick_size.get(code2, self.params['tick_size2'])['tick_size'],
                     'share_per_trade': self.params['share_per_trade2'],
+                    'levearge': self.params['levearge2'],
                     'capital': capital2
                 })
 
@@ -530,8 +534,9 @@ class Statarb3(AbstractStrategy):
                     'loss': stop_loss1,
                     'comm': self.params['commission1'],
                     'tax': self.params['tax1'],
-                    'tick_size': self.params['tick_size1'],
+                    'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
                     'share_per_trade': self.params['share_per_trade1'],
+                    'levearge': self.params['levearge1'],
                     'capital': capital1
                 })
                 
@@ -548,8 +553,9 @@ class Statarb3(AbstractStrategy):
                     'loss': stop_loss2,
                     'comm': self.params['commission2'],
                     'tax': self.params['tax2'],
-                    'tick_size': self.params['tick_size2'],
+                    'tick_size':  self.tick_size.get(code2, self.params['tick_size2'])['tick_size'],
                     'share_per_trade': self.params['share_per_trade2'],
+                    'levearge': self.params['levearge2'],
                     'capital': capital2
                 })
                 
@@ -560,8 +566,13 @@ class Statarb3(AbstractStrategy):
         elif position1 > 0 and position2 < 0: # 多A空B
             self.log.info("當前多A(MXFR)空B(TMFR)")
             
-            pl1 = round(((price1 - origin_price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))), 2)
-            pl2 = round(((origin_price2 - price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))), 2)
+            if self.params['trade_type'] == 'fstock':
+                pl1 = round(((origin_price1 - price1) * self.params['levearge1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))) * self.params['share_per_trade1'], 2)
+                pl2 = round(((price2 - origin_price2) * self.params['levearge2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))) * self.params['share_per_trade2'], 2)
+            
+            elif self.params['trade_type'] == 'index':
+                pl1 = round(((price1 - origin_price1) * self.params['tick_size1'] - (2 * self.params['commission1'] + (origin_price1 * self.params['tax1']) + (price1 * self.params['tax1']))) * self.params['share_per_trade1'], 2)
+                pl2 = round(((origin_price2 - price2) * self.params['tick_size2'] - (2 * self.params['commission2'] + (origin_price2 * self.params['tax2']) + (price2 * self.params['tax2']))) * self.params['share_per_trade2'], 2)
 
             if self.params['force_stop']: # 判斷是否超時平倉
                 if self.force_close(data_time, trading_periods): 
@@ -578,8 +589,9 @@ class Statarb3(AbstractStrategy):
                         'loss': stop_loss1,
                         'comm': self.params['commission1'],
                         'tax': self.params['tax1'],
-                        'tick_size': self.params['tick_size1'],
+                        'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
                         'share_per_trade': self.params['share_per_trade1'],
+                        'levearge': self.params['levearge1'],
                         'capital': capital1
                     })
 
@@ -596,8 +608,9 @@ class Statarb3(AbstractStrategy):
                         'loss': stop_loss2,
                         'comm': self.params['commission2'],
                         'tax': self.params['tax2'],
-                        'tick_size': self.params['tick_size2'],
+                        'tick_size': self.tick_size.get(code2, self.params['tick_size2'])['tick_size'],
                         'share_per_trade': self.params['share_per_trade2'],
+                        'levearge': self.params['levearge2'],
                         'capital': capital2
                     })
 
@@ -621,8 +634,9 @@ class Statarb3(AbstractStrategy):
                     'loss': stop_loss1,
                     'comm': self.params['commission1'],
                     'tax': self.params['tax1'],
-                    'tick_size': self.params['tick_size1'],
+                    'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
                     'share_per_trade': self.params['share_per_trade1'],
+                    'levearge': self.params['levearge1'],
                     'capital': capital1
                 })
                 
@@ -637,8 +651,9 @@ class Statarb3(AbstractStrategy):
                     'loss': stop_loss2,
                     'comm': self.params['commission2'],
                     'tax': self.params['tax2'],
-                    'tick_size': self.params['tick_size2'],
+                    'tick_size': self.tick_size.get(code2, self.params['tick_size2'])['tick_size'],
                     'share_per_trade': self.params['share_per_trade2'],
+                    'levearge': self.params['levearge2'],
                     'capital': capital2
                 })
                 
@@ -661,8 +676,9 @@ class Statarb3(AbstractStrategy):
                     'loss': stop_loss1,
                     'comm': self.params['commission1'],
                     'tax': self.params['tax1'],
-                    'tick_size': self.params['tick_size1'],
+                    'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
                     'share_per_trade': self.params['share_per_trade1'],
+                    'levearge': self.params['levearge1'],
                     'capital': capital1
                 })
                 
@@ -679,8 +695,9 @@ class Statarb3(AbstractStrategy):
                     'loss': stop_loss2,
                     'comm': self.params['commission2'],
                     'tax': self.params['tax2'],
-                    'tick_size': self.params['tick_size2'],
+                    'tick_size': self.tick_size.get(code2, self.params['tick_size2'])['tick_size'],
                     'share_per_trade': self.params['share_per_trade2'],
+                    'levearge': self.params['levearge2'],
                     'capital': capital2
                 })
                 
