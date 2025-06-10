@@ -309,7 +309,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
                     log.info(f"跳過 strategy: {item['strategy']}，night 未設定或為 False")
                     continue
                 
-                k_time = item.get('K_time', 1)
+                k_time = params.get('K_time', 1)
                 for code in item['code']:
                     # 去重
                     pair = (code, item['strategy'], k_time)

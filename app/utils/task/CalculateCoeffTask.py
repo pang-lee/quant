@@ -30,6 +30,10 @@ class CalculateCoeffTask(Task):
             else:
                 self.filter_night()
 
+            if len(self.strategy) == 0:
+                self.log.info(f"當前無策略({len(self.strategy)})要進行計算")
+                return    
+
             await self.calculate_coeff(self.lock)
         except Exception as e:
             self.log.error(f"calculate_coeff運行錯誤: {str(e)}")

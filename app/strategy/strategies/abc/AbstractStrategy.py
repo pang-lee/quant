@@ -50,11 +50,11 @@ class AbstractStrategy(ABC):
             if not has_dict: # 單純獲得tick_size列表 [tick_size1, tick_size2, ...], 將組合出 => {cod1: self.params['tick_size1'], code2: self.params['tick_size2']...}
                 self.tick_size = dict(zip(self.item['code'], [self.params[param] for param in tick_size]))
                 
-            else: # 如果列表中包含字典，提取每个字典中的 'tick_size', 'leverage', ...etc, 并与 self.item['code'] 配对 => 詳細舉例請參考 AbstractPositionControl -> calculate_take_profit或calculate_stop_loss
+            else: # 如果列表中包含字典，提取每个字典中的 'tick_size', 'levearge2', ...etc, 并与 self.item['code'] 配对 => 詳細舉例請參考 AbstractPositionControl -> calculate_take_profit或calculate_stop_loss
                 self.tick_size = {
                     code: {
                         'tick_size': self.params[d['tick_size']],
-                        'leverage': self.params[d['leverage']],
+                        'levearge': self.params[d['levearge']],
                         'symbol': d.get('symbol', 'index') # 添加要交易的商品, 默認預設為index, 如果配對交易其中一邊為股票則添加stock
                     } for code, d in zip(self.item['code'], tick_size)
                 }

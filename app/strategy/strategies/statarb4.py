@@ -1,6 +1,6 @@
 from .abc.AbstractStrategy import AbstractStrategy
 import pandas as pd
-from utils.technical_indicator import rsi
+from utils.technical_indicator.rsi import calculate_rsi
 from datetime import datetime, time
 import json
 
@@ -52,7 +52,7 @@ class Statarb4(AbstractStrategy):
             self.k_data = sorted(self.k_data, key=lambda x: datetime.strptime(x['ts'], '%Y-%m-%d %H:%M:%S'))
             
             # 將每個 code 對應的資料存儲到字典中，key 為映射後的代號, 計算 RSI
-            rsi_series = rsi(pd.Series([float(record['close']) for record in self.k_data]), self.params['indicator']['rsi'])
+            rsi_series = calculate_rsi(pd.Series([float(record['close']) for record in self.k_data]), self.params['indicator']['rsi'])
             
             if rsi_series.count() < self.params['z_window']:
                 self.log.info(f"當前的rsi時間序列資料共: {len(rsi_series)} 筆, 最低要求: {self.params['z_window']} 筆")

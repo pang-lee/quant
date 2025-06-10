@@ -27,6 +27,10 @@ class CalculateSMC(Task):
             else:
                 self.filter_monitor()
 
+            if len(self.strategy) == 0:
+                self.log.info(f"當前無策略({len(self.strategy)})要進行計算")
+                return
+            
             self.refetch_data()
             self.calculate_smc()
             self.log.info("計算完畢\n\n")
