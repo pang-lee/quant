@@ -107,8 +107,27 @@ class AbstractStrategy(ABC):
             return
         
         for key in tick_dict:
-            code_latest_close = float(self.last_data[key]['tick'][0]['close'])
-            tick_price = 0
+            # 檢查 self.last_data 中是否包含該 code 且 tick 資料有效
+            if (
+                key not in self.last_data or
+                not self.last_data[key].get('tick') or
+                not isinstance(self.last_data[key]['tick'], list) or
+                not self.last_data[key]['tick'] or
+                not isinstance(self.last_data[key]['tick'][0], dict) or
+                'close' not in self.last_data[key]['tick'][0]
+            ):
+                # 如果資料無效，保留 tick_dict[key] 的原始值，跳過更新
+                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => 缺少last_data的資料(沒有交易資料傳遞進入)")
+                continue
+
+            try:
+                # 嘗試獲取 close 價格並轉為 float
+                code_latest_close = float(self.last_data[key]['tick'][0]['close'])
+            except (ValueError, TypeError):
+                # 如果 close 無法轉為 float，保留原始值，跳過更新
+                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 無法取得最新的一筆收盤價格, tick_size維持預設")
+                continue
+            
             if code_latest_close < 10:
                 tick_price = 0.01
             elif 10 <= code_latest_close < 50:

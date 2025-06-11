@@ -5,7 +5,7 @@ import json
 class Statarb3(AbstractStrategy):
     def __init__(self, datas, item, symbol):
         super().__init__(datas, item, symbol, 0, ['stop_ratio1', 'stop_ratio2'], [{'tick_size': 'tick_size1', 'levearge': 'levearge1', 'symbol': 'fstock'}, {'tick_size': 'tick_size2', 'levearge': 'levearge2', 'symbol': 'fstock'}])
-        self.code_mapping = {'QXFR': 'A', 'DAFR': 'B'}
+        self.code_mapping = {'QXFR1': 'A', 'DAFR1': 'B'}
         self.current_position1 = None
         self.current_position2 = None
         self.k_data = []

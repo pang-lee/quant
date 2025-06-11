@@ -25,14 +25,15 @@ class Statarb5(AbstractStrategy):
                 self.log.info(f"找不到對應的 redis_k_key: {code}")
                 continue  # 如果找不到對應的 redis_k_key，跳過該 code
             
-            k_amount = self.lrange_of_redis(redis_k_key, -self.params['k_lookback'], -1)
+            minimount = (self.params['z_window'] + self.params['ema_period'])
+            k_amount = self.lrange_of_redis(redis_k_key, -minimount, -1)
 
-            if len(k_amount) < self.params['k_lookback']:
-                self.log.info(f"當前K棒數量{len(k_amount)}小於{self.params['k_lookback']}")
+            if len(k_amount) < minimount:
+                self.log.info(f"當前K棒數量{len(k_amount)}小於{minimount}")
                 continue
 
             # 只取最近 long_window 根 K 棒
-            recent_k_amount = k_amount[-self.params['k_lookback']:]
+            recent_k_amount = k_amount[-minimount:]
             
             # 將 JSON 字串轉換為資料結構
             self.k_data = [json.loads(record) for record in recent_k_amount]

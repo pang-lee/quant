@@ -306,7 +306,7 @@ async def clear_redis(lock, output_dir="data/preserve"):
 
                 # 應用 night 過濾（僅在下午 2:00 後）
                 if night_filter(current_time) and not params.get("night", False):
-                    log.info(f"跳過 strategy: {item['strategy']}，night 未設定或為 False")
+                    log.info(f"當前判斷是否要列入重新獲取的清單, 跳過 strategy: {item['strategy']}，night 未設定或為 False")
                     continue
                 
                 k_time = params.get('K_time', 1)
@@ -540,4 +540,5 @@ async def clear_redis(lock, output_dir="data/preserve"):
     # 重新添加行情資料
     reinsert_data(output_dir)
     
+    log.info("本次的調用結束, 等待下一次調用\n\n")
     return
