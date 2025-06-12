@@ -106,28 +106,49 @@ class AbstractStrategy(ABC):
         if self.params['trade_type'] not in ['fstock', 'stock']:
             return
         
-        for key in tick_dict:
-            # 檢查 self.last_data 中是否包含該 code 且 tick 資料有效
-            if (
-                key not in self.last_data or
-                not self.last_data[key].get('tick') or
-                not isinstance(self.last_data[key]['tick'], list) or
-                not self.last_data[key]['tick'] or
-                not isinstance(self.last_data[key]['tick'][0], dict) or
-                'close' not in self.last_data[key]['tick'][0]
-            ):
-                # 如果資料無效，保留 tick_dict[key] 的原始值，跳過更新
-                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => 缺少last_data的資料(沒有交易資料傳遞進入)")
-                continue
+        # 在迴圈之前規範化 self.last_data
+        if not self.last_data:
+            self.log.warning("self.last_data 為空，跳過所有 tick_size 檢查")
+            for key in tick_dict:
+                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => 缺少last_data資料")
+            return  # 提早退出
+
+        if len(self.item['code']) == 1:
+            key = self.item['code'][0]  # 單一代碼，例如 'QXFR1'
+            if key not in tick_dict:
+                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => tick_dict 中缺少該代碼")
+                return
+
+            # 檢查 self.last_data 是否為單一字典
+            if not isinstance(self.last_data, dict) or 'ts' not in self.last_data or 'tick' not in self.last_data:
+                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => self.last_data 結構無效")
+                return
+
+            data = self.last_data  # 直接使用單一字典
+
+            # 檢查 'tick' 是否存在
+            if not data.get('tick'):
+                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => 缺少tick資料")
+                return
+
+            # 檢查 'tick' 是否為非空列表
+            if not isinstance(data['tick'], list) or not data['tick']:
+                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => tick資料不是有效列表或為空")
+                return
+
+            # 檢查第一個 tick 是否為字典且包含 'close'
+            if not isinstance(data['tick'][0], dict) or 'close' not in data['tick'][0]:
+                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => tick資料缺少有效字典或close鍵")
+                return
 
             try:
                 # 嘗試獲取 close 價格並轉為 float
-                code_latest_close = float(self.last_data[key]['tick'][0]['close'])
+                code_latest_close = float(data['tick'][0]['close'])
             except (ValueError, TypeError):
-                # 如果 close 無法轉為 float，保留原始值，跳過更新
-                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 無法取得最新的一筆收盤價格, tick_size維持預設")
-                continue
-            
+                self.log.warning(f"跳過當前 {key} 的tick_size檢查, 無法取得最新收盤價格, tick_size維持預設")
+                return
+
+            # 根據 close 價格設置 tick_price
             if code_latest_close < 10:
                 tick_price = 0.01
             elif 10 <= code_latest_close < 50:
@@ -140,15 +161,63 @@ class AbstractStrategy(ABC):
                 tick_price = 1.0
             else:  # price >= 1000
                 tick_price = 5.0
-            
-            # 判斷 tick_dict 的格式
+
+            # 判斷 tick_dict 的格式並更新
             if isinstance(tick_dict[key], dict):
-                # 第二種格式：{code1: {'tick_size': tick_size1, 'levearge': ...}, {'tick_size': tick_size2, 'levearge': ...} ...}
                 tick_dict[key]['tick_size'] = tick_price
             else:
-                # 第一種格式：{code1: tick_size1, code2: tick_size2, ...}
                 tick_dict[key] = tick_price
-        
+                
+        else:
+            for key in tick_dict:
+                # 檢查 self.last_data 中是否包含該 code 且 tick 資料有效
+                if not isinstance(self.last_data, dict) or key not in self.last_data:
+                    self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => 缺少last_data的資料(沒有交易資料傳遞進入)")
+                    continue
+
+                data = self.last_data[key]
+
+                if not data.get('tick'):
+                    self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => 缺少tick資料")
+                    continue
+                
+                if not isinstance(data['tick'], list) or not data['tick']:
+                    self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => tick資料不是有效列表或為空")
+                    continue
+                
+                if not isinstance(data['tick'][0], dict) or 'close' not in data['tick'][0]:
+                    self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => tick資料缺少有效字典或close鍵")
+                    continue
+
+                try:
+                    # 嘗試獲取 close 價格並轉為 float
+                    code_latest_close = float(self.last_data[key]['tick'][0]['close'])
+                except (ValueError, TypeError):
+                    # 如果 close 無法轉為 float，保留原始值，跳過更新
+                    self.log.warning(f"跳過當前 {key} 的tick_size檢查, 無法取得最新的一筆收盤價格, tick_size維持預設")
+                    continue
+                
+                if code_latest_close < 10:
+                    tick_price = 0.01
+                elif 10 <= code_latest_close < 50:
+                    tick_price = 0.05
+                elif 50 <= code_latest_close < 100:
+                    tick_price = 0.1
+                elif 100 <= code_latest_close < 500:
+                    tick_price = 0.5
+                elif 500 <= code_latest_close < 1000:
+                    tick_price = 1.0
+                else:  # price >= 1000
+                    tick_price = 5.0
+
+                # 判斷 tick_dict 的格式
+                if isinstance(tick_dict[key], dict):
+                    # 第二種格式：{code1: {'tick_size': tick_size1, 'levearge': ...}, {'tick_size': tick_size2, 'levearge': ...} ...}
+                    tick_dict[key]['tick_size'] = tick_price
+                else:
+                    # 第一種格式：{code1: tick_size1, code2: tick_size2, ...}
+                    tick_dict[key] = tick_price
+
         self.tick_size = tick_dict
         self.log.info(f"當前交易類行為: {self.params['trade_type']}, 當前tick_size為: {self.tick_size}")
         return
