@@ -1,4 +1,4 @@
-import os, json, redis, pytz, ast
+import os, json, redis, pytz, ast, shutil
 import pandas as pd
 from datetime import timedelta, datetime, time
 from pathlib import Path
@@ -295,7 +295,35 @@ async def clear_redis(lock, output_dir="data/preserve"):
                 return v
         return v
     
+    def clean_k_folders(output_dir):
+        """
+        刪除 output_dir 下所有子目錄中以 'K' 或 'k' 結尾的資料夾及其內容。
+
+        Args:
+            output_dir (str): 根目錄路徑，例如 '/data/preserve'
+        """
+        # 確保 output_dir 存在
+        if not os.path.exists(output_dir):
+            log.error(f"目錄 {output_dir} 不存在")
+            return
+
+        # 遍歷 output_dir 下的所有子目錄
+        for root, dirs, _ in os.walk(output_dir, topdown=False):
+            for dir_name in dirs:
+                # 檢查資料夾名稱是否以 'K' 或 'k' 結尾
+                if dir_name.lower().endswith('k'):
+                    folder_path = os.path.join(root, dir_name)
+                    try:
+                        # 刪除資料夾及其所有內容
+                        shutil.rmtree(folder_path)
+                        log.info(f"已刪除資料夾: {folder_path}")
+                    except Exception as e:
+                        log.error(f"刪除資料夾 {folder_path} 時發生錯誤: {e}")
+        
+        return
+
     def fetch_data(output_dir):
+        clean_k_folders(output_dir)
         result = []
         seen_pairs = set()  # 去重 (code, strategy, timeframe)
         current_time = datetime.now(pytz.timezone("Asia/Taipei")).time()
