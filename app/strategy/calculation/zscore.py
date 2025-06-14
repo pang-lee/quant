@@ -12,6 +12,8 @@ class Zscore(AbstractCalculation):
         return self.calculation()
 
     def calculation(self):
+        self.log.info(f"當前計算方式: {self.params['statarb_type']}")
+        
         if self.params['statarb_type'] == 'beta':
             return self.generate_signal(self.zscore(self.beta_sereis()))
         elif self.params['statarb_type'] == 'bias':
@@ -24,16 +26,24 @@ class Zscore(AbstractCalculation):
             return self.generate_signal(self.zscore(self.diff_change_sereis(self.params['use_pct'])))
     
     def bias_sereis(self, ratio):
-        return calculate_bias_ratio(self.data['A'], self.data['B'], self.params['bias_period'], use_ratio=ratio)
+        bias_series = calculate_bias_ratio(self.data['A'], self.data['B'], self.params['bias_period'], use_ratio=ratio)
+        self.log.info(f"當前的bias序列偏差計算: {bias_series}")
+        return bias_series
 
     def diff_change_sereis(self, pct):
-        return diff_change(self.data['A'], self.data['B'], pct=pct)
+        diff_series = diff_change(self.data['A'], self.data['B'], pct=pct)
+        self.log.info(f"當前的diff序列計算: {diff_series}")
+        return diff_series
 
     def diff_change_shift_sereis(self):
-        return diff_change_shift(self.data['A'], self.data['B'])
+        diff_change_series = diff_change_shift(self.data['A'], self.data['B'])
+        self.log.info(f"當前的diff_change序列計算: {diff_change_series}")
+        return diff_change_series
     
     def shift_log_sereis(self, log):
-        return shift_log(self.data['A'], self.data['B'], log=log)
+        shfit_log_series = shift_log(self.data['A'], self.data['B'], log=log)
+        self.log.info(f"當前的shift_log序列計算: {shfit_log_series}")
+        return shfit_log_series
 
     def beta_sereis(self):
         self.log.info(f"開始計算\n: {self.data}")

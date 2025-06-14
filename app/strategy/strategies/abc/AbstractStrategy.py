@@ -61,7 +61,6 @@ class AbstractStrategy(ABC):
                 
             # 進行價格tick判斷
             self.get_tick_price(self.tick_size)
-            
         else:
             self.tick_size = self.params[tick_size]
 
@@ -113,6 +112,7 @@ class AbstractStrategy(ABC):
                 self.log.warning(f"跳過當前 {key} 的tick_size檢查, 維持預設 => 缺少last_data資料")
             return  # 提早退出
 
+        # 如果只有單一的code
         if len(self.item['code']) == 1:
             key = self.item['code'][0]  # 單一代碼，例如 'QXFR1'
             if key not in tick_dict:
@@ -144,6 +144,7 @@ class AbstractStrategy(ABC):
             try:
                 # 嘗試獲取 close 價格並轉為 float
                 code_latest_close = float(data['tick'][0]['close'])
+                self.log.info(f"當前:{key}的價格為: {code_latest_close}")
             except (ValueError, TypeError):
                 self.log.warning(f"跳過當前 {key} 的tick_size檢查, 無法取得最新收盤價格, tick_size維持預設")
                 return
@@ -167,7 +168,8 @@ class AbstractStrategy(ABC):
                 tick_dict[key]['tick_size'] = tick_price
             else:
                 tick_dict[key] = tick_price
-                
+
+        # 如果有多個code
         else:
             for key in tick_dict:
                 # 檢查 self.last_data 中是否包含該 code 且 tick 資料有效
@@ -192,6 +194,7 @@ class AbstractStrategy(ABC):
                 try:
                     # 嘗試獲取 close 價格並轉為 float
                     code_latest_close = float(self.last_data[key]['tick'][0]['close'])
+                    self.log.info(f"當前:{key}的價格為: {code_latest_close}")
                 except (ValueError, TypeError):
                     # 如果 close 無法轉為 float，保留原始值，跳過更新
                     self.log.warning(f"跳過當前 {key} 的tick_size檢查, 無法取得最新的一筆收盤價格, tick_size維持預設")

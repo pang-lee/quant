@@ -283,8 +283,8 @@ class Statarb5(AbstractStrategy):
             self.log.warning(f'{code2} 缺少tick資料')
             return False
         
-        self.log.info(f"當前data1(MXFR): \n{data1}\n")
-        self.log.info(f"當前data2(TMFR): \n{data2}\n")
+        self.log.info(f"當前data1(A): {data1}\n")
+        self.log.info(f"當前data2(B): {data2}\n")
         
         return {code1: data1, code2: data2}
 
@@ -311,6 +311,7 @@ class Statarb5(AbstractStrategy):
             self.nothing_order()
             return self.order
 
+        self.log.info(f"進場前判斷當前是否有資料")
         code_data = self.check_data_exist()
         
         if code_data is False:
@@ -335,7 +336,7 @@ class Statarb5(AbstractStrategy):
                 'tax': self.params['tax1'],
                 'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
                 'share_per_trade': self.params['share_per_trade1'],
-                'levearge': self.params['levearge'],
+                'levearge': self.params['levearge1'],
                 'capital': capital1
             })
             
@@ -365,7 +366,7 @@ class Statarb5(AbstractStrategy):
                 'tax': self.params['tax1'],
                 'tick_size': self.tick_size.get(code1, self.params['tick_size1'])['tick_size'],
                 'share_per_trade': self.params['share_per_trade1'],
-                'levearge': self.params['levearge'],
+                'levearge': self.params['levearge1'],
                 'capital': capital1
             })
             
@@ -416,6 +417,7 @@ class Statarb5(AbstractStrategy):
         origin_price1, origin_price2 = int(pos1_dict.get('origin', 0)), int(pos2_dict.get('origin', 0))
         capital1, capital2 = int(pos1_dict.get('capital', self.params['capital1'])), int(pos2_dict.get('capital', self.params['capital2']))
 
+        self.log.info(f"止損與出場前檢查資料是否存在判斷")
         code_data = self.check_data_exist()
 
         if code_data is False:
@@ -424,7 +426,7 @@ class Statarb5(AbstractStrategy):
         
         code1, code2 = list(code_data.keys())[0], list(code_data.keys())[1]
         data1, data2 = code_data[code1], code_data[code2]
-        price1, price2 = int(data1['tick'][0]['close']), int(data2['tick'][0]['close'])
+        price1, price2 = float(data1['tick'][0]['close']), float(data2['tick'][0]['close'])
         ts1, ts2 =  data1['ts'], data2['ts']
         data_time = datetime.strptime(data1['ts'], "%Y-%m-%d %H:%M:%S")
         trading_periods = [
@@ -721,6 +723,13 @@ class Statarb5(AbstractStrategy):
     
     def execute(self):
         try:
+            self.log.info(f"運行K線計算前, 檢查當前資料是否有缺失")
+            code_data = self.check_data_exist()
+
+            if code_data is False:
+                self.nothing_order()
+                return self.order
+            
             self.load_k()
             
             if not self.calculate:

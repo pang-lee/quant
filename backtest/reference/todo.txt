@@ -1,7 +1,7 @@
 需要的檢查:
-1. 
-2. 
-3. 
+1. check rsi, EMA, bias calculation value is correct or not
+2. cehck redis is deleted the folder of k from specific path
+3. check if reinsert data to the redis, is the k value correct or not (sometime fetch k value is not start from 9.00)
 
 ---------- 參考資料 ----------
 1. 在check_signal中, 從Redis_stream取出資料後, 傳遞的資料格式為如下:
