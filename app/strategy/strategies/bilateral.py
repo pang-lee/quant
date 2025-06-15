@@ -21,9 +21,9 @@ class Bilateral(AbstractStrategy):
         
         # 將 JSON 字串轉換為資料結構
         self.k_data = [json.loads(record) for record in recent_k_amount]
-
-        latest_k_ts = datetime.strptime(self.k_data[-1]['ts'], "%Y-%m-%d %H:%M:%S")
+        self.log.info(f"當前的K棒時間序列: {self.k_data}")
         
+        latest_k_ts = datetime.strptime(self.k_data[-1]['ts'], "%Y-%m-%d %H:%M:%S")
         if self.last_k_ts is None:
             return super().save_to_redis(f"last_k_ts_{self.item['code'][0]}_{self.item['strategy']}", {'ts': latest_k_ts.strftime("%Y-%m-%d %H:%M:%S")}, type='set')  # 存入 Redis
             
