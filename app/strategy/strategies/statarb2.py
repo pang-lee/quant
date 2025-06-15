@@ -60,6 +60,11 @@ class Statarb2(AbstractStrategy):
                 self.log.info(f"當前的rsi時間序列資料共: {len(rsi_series)} 筆, 最低要求: {self.params['z_window']} 筆")
                 return
             
+            # 如果 RSI 序列長度超過 z_window，選取最新的 z_window 個數值
+            if len(rsi_series) > self.params['z_window']:
+                rsi_series = rsi_series.tail(self.params['z_window'])
+                self.log.info(f"RSI序列已依照z_window進行裁剪 {self.params['z_window']} 筆: {rsi_series}")
+            
             df_dict[mapped_code] = rsi_series
 
             if super().get_from_redis(f"flag_{code}_{self.item['strategy']}") is None:
